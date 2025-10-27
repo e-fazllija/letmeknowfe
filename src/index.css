@@ -1,0 +1,30 @@
+:root { color-scheme: light dark; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  min-width: 320px;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a { text-decoration: none; }
+.bg-dark .nav-link { color: #adb5bd; }
+.bg-dark .nav-link:hover { color: #fff; }
+.bg-dark .nav-link.active {
+  color: #fff !important;
+  background: rgba(255,255,255,.15);
+  border-radius: .5rem;
+}
+main {
+  min-height: calc(100vh - 56px);
+}
+/* Etichette e campi marcati per i form LMW */
+.lmw-form label{ font-weight:600; color:#111827; }
+.lmw-form .form-control, .lmw-form .form-select{
+  font-weight:600; color:#111827; border-color:#273447; border-width:2px; box-shadow:none; background:#fff;
+}
+.lmw-form .form-control::placeholder{ color:#6b7280; font-weight:400; opacity:1; }
+.lmw-form .form-control:focus, .lmw-form .form-select:focus{
+  border-color:#0d6efd; box-shadow:0 0 0 .2rem rgba(13,110,253,.15);
+}

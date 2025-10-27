@@ -1,0 +1,252 @@
+// src/pages/Login.tsx
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import logo from "../assets/logo-transparent-light.png";
+import api, { v1, getSavedTenantId, saveTenantId, saveMfaContext } from "@/lib/api";
+
+type LocationState = { redirectTo?: string } | null;
+
+export default function Login() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const locState = (location.state as LocationState) || null;
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tenant, setTenant] = useState<string>(() => getSavedTenantId() || "");
+
+  // Se c'è un MFA pending, porta subito alla verifica
+  useEffect(() => {
+    const hasMfa = !!sessionStorage.getItem("lmw_mfa_token");
+    if (hasMfa) navigate("/mfa/verify", { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Se sei già autenticato, vai subito alla destinazione
+  useEffect(() => {
+    const hasToken = !!localStorage.getItem("lmw_token");
+    if (hasToken) {
+      const target = locState?.redirectTo || "/home";
+      navigate(target, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Consenti override tenant via query ?tenant=...
+  useEffect(() => {
+    try {
+      const qs = new URLSearchParams(window.location.hash.split("?")[1] || "");
+      const tenantFromQs = (qs.get("tenant") || "").trim();
+      if (tenantFromQs) {
+        saveTenantId(tenantFromQs);
+        setTenant(tenantFromQs);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  async function doLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const tenantId = tenant || getSavedTenantId();
+      if (!tenantId) {
+        setError("Client ID (tenant) mancante: inseriscilo per procedere.");
+        setLoading(false);
+        return;
+      }
+      // salva il tenant per gli step successivi
+      saveTenantId(tenantId);
+
+      const res = await api.post(
+        v1("tenant/auth/login"),
+        { email: email.trim(), password, clientId: tenantId },
+        { headers: { "x-tenant-id": tenantId } }
+      );
+
+      const data = (res as any).data ?? {};
+
+      // Caso MFA non segnalato via 428 ma via payload/header 2xx
+      try {
+        const bodyMfaToken = (data as any)?.mfaToken;
+        if (bodyMfaToken) {
+          saveMfaContext({ token: bodyMfaToken, methods: (data as any)?.methods || (data as any)?.mfa?.methods });
+        }
+      } catch {}
+
+      const hasMfaToken = !!sessionStorage.getItem("lmw_mfa_token");
+      if (!data?.accessToken && hasMfaToken) {
+        try {
+          localStorage.removeItem("lmw_token");
+          localStorage.setItem("lmw_user_email", email.trim());
+        } catch {}
+        navigate("/mfa/verify", { replace: true });
+        return;
+      }
+
+      // ✅ Success senza MFA
+      if (data?.accessToken) {
+        try {
+          localStorage.setItem("lmw_token", data.accessToken);
+          localStorage.setItem("lmw_user_email", email.trim());
+
+          // mappa ruolo BE -> FE
+          const beRole = (data?.user?.role ?? "") as string;
+          if (typeof beRole === "string" && beRole) {
+            const upper = beRole.toUpperCase();
+            const role = upper === "ADMIN" ? "admin" : upper === "SUPERHOST" ? "superhost" : "user";
+            localStorage.setItem("lmw_user_role", role);
+          }
+
+          if (remember) {
+            const role = localStorage.getItem("lmw_user_role") || "user";
+            localStorage.setItem("letmeknow_auth", JSON.stringify({ email: email.trim(), role }));
+          }
+        } catch {
+          /* ignore */
+        }
+
+        const target = locState?.redirectTo || "/home";
+        navigate(target, { replace: true });
+        return;
+      }
+
+      // Fallback: risposta atipica
+      setError("Risposta inattesa dal server.");
+    } catch (err: any) {
+      // ✳️ Gestione MFA tramite interceptor 428 → err.mfaRequired
+      if (err?.mfaRequired === true) {
+        try {
+          localStorage.removeItem("lmw_token");
+          localStorage.setItem("lmw_user_email", email.trim());
+        } catch {}
+        navigate("/mfa/verify", { replace: true });
+        return;
+      }
+
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+      if (status === 428) {
+        // (fallback nel caso l'interceptor non sia attivo)
+        try {
+          const body = err?.response?.data || {};
+          const headers = (err?.response?.headers || {}) as Record<string, any>;
+          const tokenFromBody = body?.mfaToken || body?.mfa_token || body?.mfa?.token || body?.token;
+          const tokenFromHdr = headers["mfa-token"] || headers["x-mfa-token"] || headers["x-auth-mfa"] || headers["x-auth-mfa-token"] || headers["x-mfa"];
+          const mfaToken = tokenFromBody || tokenFromHdr || null;
+          if (mfaToken) {
+            saveMfaContext({ token: mfaToken, methods: body?.methods || body?.mfa?.methods });
+          }
+          localStorage.removeItem("lmw_token");
+          localStorage.setItem("lmw_user_email", email.trim());
+        } catch {}
+        navigate("/mfa/verify", { replace: true });
+        return;
+      }
+
+      setError(data?.message || err?.message || "Login fallito");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="d-flex align-items-center justify-content-center" style={{ minHeight: "100vh" }}>
+      <div className="container">
+        <div className="row justify-content-center">
+          {/* Logo brand */}
+          <div className="col-12 text-center mb-4">
+            <img src={logo} alt="LetMeKnow" style={{ height: 160, width: "auto" }} className="mb-2" />
+            <div className="text-muted">Whistleblowing platform</div>
+          </div>
+
+          {/* Card Login */}
+          <div className="col-12 col-sm-10 col-md-7 col-lg-5">
+            <div className="card shadow-sm">
+              <div className="card-body">
+                <h4 className="card-title mb-3">Accedi</h4>
+                <p className="text-muted mb-4">Inserisci le credenziali per continuare.</p>
+
+                {error && <div className="alert alert-danger py-2">{error}</div>}
+
+                <form onSubmit={doLogin}>
+                  {!tenant && (
+                    <div className="mb-3">
+                      <label className="form-label">Client ID (tenant)</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="es. cmg..."
+                        value={tenant}
+                        onChange={(e) => setTenant(e.target.value.trim())}
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label className="form-label">Email</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      placeholder="nome@azienda.it"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Password</label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      placeholder="••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={4}
+                    />
+                  </div>
+
+                  <div className="form-check mb-3">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="remember"
+                      checked={remember}
+                      onChange={(e) => setRemember(e.target.checked)}
+                    />
+                    <label className="form-check-label" htmlFor="remember">
+                      Ricordami su questo dispositivo
+                    </label>
+                  </div>
+
+                  <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+                    {loading ? "Accesso in corso…" : "Accedi"}
+                  </button>
+                </form>
+
+                <div className="mt-3 small text-muted">
+                  <div>💡 Se non hai ancora un account, registrati dalla pagina pubblica.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center text-muted small mt-3">
+              © {new Date().getFullYear()} LetMeKnow
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

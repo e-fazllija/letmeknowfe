@@ -1,0 +1,206 @@
+// src/pages/RegisterClient.tsx
+import { useState } from "react";
+import type { FormEvent } from "react";
+import Form from "react-bootstrap/Form";
+import Button from "react-bootstrap/Button";
+import Alert from "react-bootstrap/Alert";
+import Card from "react-bootstrap/Card";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
+import { signupPublicClient, type EmployeeRange, type BillingCycle, type ContractTerm, type PaymentMethod, type SignupPublicClientReq } from "@/lib/publicClients.service";
+
+const EMPLOYEE_RANGE: EmployeeRange[] = ["DA_0_A_50","DA_51_A_100","DA_101_A_150","DA_151_A_200","DA_201_A_250","OLTRE_250"];
+const BILLING_CYCLE: BillingCycle[] = ["MENSILE","ANNUALE"];
+const CONTRACT_TERM: ContractTerm[] = ["ONE_YEAR","THREE_YEARS"];
+const PAYMENT_METHOD: PaymentMethod[] = ["CARTA","BONIFICO"];
+
+type FormState = {
+  companyName: string; contactEmail: string; employeeRange: EmployeeRange;
+  billingTaxId: string; billingEmail: string; billingPec: string; billingSdiCode: string;
+  billingAddressLine1: string; billingZip: string; billingCity: string; billingProvince: string; billingCountry: string;
+  amount: string; currency: string; billingCycle: BillingCycle; contractTerm: ContractTerm; method: PaymentMethod;
+};
+
+function makeIdem() { try { /* @ts-ignore */ return crypto?.randomUUID ? `req-${crypto.randomUUID()}` : `req-${Math.random().toString(36).slice(2)}${Date.now()}`; } catch { return `req-${Date.now()}`; } }
+
+export default function RegisterClient() {
+  const [form, setForm] = useState<FormState>({ companyName: "", contactEmail: "", employeeRange: "DA_0_A_50", billingTaxId: "", billingEmail: "", billingPec: "", billingSdiCode: "", billingAddressLine1: "", billingZip: "", billingCity: "", billingProvince: "", billingCountry: "Italia", amount: "1200", currency: "EUR", billingCycle: "ANNUALE", contractTerm: "ONE_YEAR", method: "CARTA" });
+  const [loading, setLoading] = useState(false);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [activationUrl, setActivationUrl] = useState<string | null>(null);
+  const INLINE = import.meta.env.VITE_REGISTER_INLINE_ACTIVATION === "true";
+  const [ownerPassword, setOwnerPassword] = useState("");
+  const [ownerPassword2, setOwnerPassword2] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [showPwd2, setShowPwd2] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault(); setLoading(true); setOkMsg(null); setErrMsg(null); setActivationUrl(null);
+    if (!form.companyName.trim()) { setLoading(false); return setErrMsg("Ragione sociale obbligatoria"); }
+    if (!/\S+@\S+\.\S+/.test(form.contactEmail)) { setLoading(false); return setErrMsg("Email contatto non valida"); }
+    if (form.billingTaxId.trim().length < 8 || form.billingTaxId.trim().length > 28) { setLoading(false); return setErrMsg("P.IVA/CF deve essere tra 8 e 28 caratteri."); }
+    if (!/^\d{5}$/.test(form.billingZip)) { setLoading(false); return setErrMsg("CAP non valido (5 cifre)"); }
+    if (!/^[A-Za-z]{2}$/.test(form.billingProvince)) { setLoading(false); return setErrMsg("Provincia 2 lettere (es. RM)"); }
+    if (form.billingSdiCode && !/^[A-Z0-9]{7}$/i.test(form.billingSdiCode.trim())) { setLoading(false); return setErrMsg("Codice SDI non valido (7 caratteri alfanumerici)"); }
+
+    // Validazione minima password owner (opzionale)
+    setFormError(null);
+    if (ownerPassword) {
+      if (ownerPassword.length < 8) {
+        setLoading(false);
+        setFormError("La password deve avere almeno 8 caratteri.");
+        return;
+      }
+      if (ownerPassword !== ownerPassword2) {
+        setLoading(false);
+        setFormError("Le password non coincidono.");
+        return;
+      }
+    }
+
+    try {
+      const payload: SignupPublicClientReq = {
+        client: {
+          companyName: form.companyName.trim(), contactEmail: form.contactEmail.trim(), employeeRange: form.employeeRange, status: "ACTIVE",
+          billing: { billingTaxId: form.billingTaxId.trim(), billingEmail: form.billingEmail.trim(), billingPec: form.billingPec.trim() || undefined, billingSdiCode: form.billingSdiCode.trim() || undefined, billingAddressLine1: form.billingAddressLine1.trim(), billingZip: form.billingZip.trim(), billingCity: form.billingCity.trim(), billingProvince: form.billingProvince.trim().toUpperCase(), billingCountry: form.billingCountry.trim() }
+        },
+        subscription: { amount: parseFloat(form.amount.replace(",",".")), currency: form.currency || "EUR", billingCycle: form.billingCycle, contractTerm: form.contractTerm, paymentMethod: form.method, status: "ACTIVE" },
+        options: { idempotencyKey: makeIdem() },
+      };
+      // Inclusione condizionata nel payload
+      if (INLINE && ownerPassword) {
+        (payload as any).ownerPassword = ownerPassword;
+      }
+      const res = await signupPublicClient(payload);
+      const actUrl = (res as any)?.ownerInvite?.activationUrl as string | undefined;
+      if (actUrl) setActivationUrl(actUrl);
+      setOkMsg("Azienda creata. Abbiamo inviato l’invito all’owner.");
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 409) setErrMsg("Esiste già un account aziendale con questi dati.");
+      else setErrMsg(e?.response?.data?.message || e?.message || "Errore durante la registrazione");
+    } finally { setLoading(false); }
+  }
+
+  return (
+    <div className="container py-4">
+      <h1 className="mb-3">Registrazione Cliente</h1>
+      <p className="text-muted">Compila i dati aziendali e di fatturazione. Invieremo un link di attivazione all’owner.</p>
+      <Card className="shadow-sm"><Card.Body>
+        {okMsg && (<Alert variant="success" className="mb-3" style={{ whiteSpace: "pre-line" }}>{okMsg}</Alert>)}
+        {activationUrl && (
+          <div className="alert alert-info d-flex justify-content-between align-items-center">
+            <div>Link di attivazione disponibile (dev).</div>
+            <a className="btn btn-sm btn-primary" href={activationUrl} target="_blank" rel="noreferrer">Apri attivazione</a>
+          </div>
+        )}
+        {errMsg && (<Alert variant="danger" className="mb-3" style={{ whiteSpace: "pre-line" }}>{errMsg}</Alert>)}
+
+        <Form onSubmit={onSubmit} noValidate>
+          <Row>
+            <Col md={6}><Form.Group className="mb-3"><Form.Label>Ragione sociale *</Form.Label><Form.Control value={form.companyName} onChange={(e) => set("companyName", e.target.value)} placeholder="Acme S.p.A." required /></Form.Group></Col>
+            <Col md={6}><Form.Group className="mb-3"><Form.Label>Email contatto (owner) *</Form.Label><Form.Control type="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} placeholder="owner@acme.it" required /></Form.Group></Col>
+          </Row>
+
+          {/* Password owner (solo UI; payload condizionato da INLINE) */}
+          <Row>
+            <Col md={6}>
+              <div className="mb-3">
+                <label className="form-label">
+                  Password owner {INLINE ? "(richiesta per attivazione inline)" : "(verrà ignorata dal payload)"}
+                </label>
+                <div className="input-group">
+                  <input
+                    type={showPwd ? "text" : "password"}
+                    className="form-control"
+                    placeholder="Min 8 caratteri"
+                    value={ownerPassword}
+                    onChange={(e) => setOwnerPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => setShowPwd((s) => !s)}
+                    aria-label="Mostra/Nascondi password"
+                  >
+                    {showPwd ? "Nascondi" : "Mostra"}
+                  </button>
+                </div>
+              </div>
+            </Col>
+            <Col md={6}>
+              <div className="mb-3">
+                <label className="form-label">Conferma password</label>
+                <div className="input-group">
+                  <input
+                    type={showPwd2 ? "text" : "password"}
+                    className="form-control"
+                    placeholder="Ripeti la password"
+                    value={ownerPassword2}
+                    onChange={(e) => setOwnerPassword2(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => setShowPwd2((s) => !s)}
+                    aria-label="Mostra/Nascondi conferma"
+                  >
+                    {showPwd2 ? "Nascondi" : "Mostra"}
+                  </button>
+                </div>
+                {formError && <div className="form-text text-danger">{formError}</div>}
+              </div>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md={6}><Form.Group className="mb-3"><Form.Label>Numero dipendenti *</Form.Label><Form.Select value={form.employeeRange} onChange={(e) => set("employeeRange", e.target.value as EmployeeRange)}>{EMPLOYEE_RANGE.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}</Form.Select></Form.Group></Col>
+          </Row>
+
+          <hr /><h5 className="mt-2">Dati di fatturazione</h5>
+          <Row className="mt-1">
+            <Col md={6}><Form.Group className="mb-3"><Form.Label>P.IVA / CF *</Form.Label><Form.Control value={form.billingTaxId} onChange={(e) => set("billingTaxId", e.target.value)} placeholder="12345678901" required /></Form.Group></Col>
+            <Col md={6}><Form.Group className="mb-3"><Form.Label>Email fatturazione *</Form.Label><Form.Control type="email" value={form.billingEmail} onChange={(e) => set("billingEmail", e.target.value)} placeholder="fatture@acme.it" required /></Form.Group></Col>
+          </Row>
+          <Row>
+            <Col md={6}><Form.Group className="mb-3"><Form.Label>PEC</Form.Label><Form.Control value={form.billingPec} onChange={(e) => set("billingPec", e.target.value)} placeholder="pec@pec.it" /></Form.Group></Col>
+            <Col md={6}><Form.Group className="mb-3"><Form.Label>Codice SDI (7)</Form.Label><Form.Control value={form.billingSdiCode} onChange={(e) => set("billingSdiCode", e.target.value.toUpperCase())} placeholder="AAAAAAA" /></Form.Group></Col>
+          </Row>
+          <Row>
+            <Col md={12}><Form.Group className="mb-3"><Form.Label>Indirizzo *</Form.Label><Form.Control value={form.billingAddressLine1} onChange={(e) => set("billingAddressLine1", e.target.value)} placeholder="Via Roma 1" required /></Form.Group></Col>
+          </Row>
+          <Row>
+            <Col md={3}><Form.Group className="mb-3"><Form.Label>CAP *</Form.Label><Form.Control value={form.billingZip} onChange={(e) => set("billingZip", e.target.value)} placeholder="00100" required /></Form.Group></Col>
+            <Col md={5}><Form.Group className="mb-3"><Form.Label>Città *</Form.Label><Form.Control value={form.billingCity} onChange={(e) => set("billingCity", e.target.value)} placeholder="Roma" required /></Form.Group></Col>
+            <Col md={2}><Form.Group className="mb-3"><Form.Label>Prov *</Form.Label><Form.Control value={form.billingProvince} onChange={(e) => set("billingProvince", e.target.value.toUpperCase())} placeholder="RM" required maxLength={2} /></Form.Group></Col>
+            <Col md={2}><Form.Group className="mb-3"><Form.Label>Nazione *</Form.Label><Form.Control value={form.billingCountry} onChange={(e) => set("billingCountry", e.target.value)} placeholder="Italia" required /></Form.Group></Col>
+          </Row>
+
+          <hr /><h5 className="mt-2">Sottoscrizione</h5>
+          <Row className="mt-1">
+            <Col md={4}><Form.Group className="mb-3"><Form.Label>Importo *</Form.Label><Form.Control type="number" step="0.01" value={form.amount} onChange={(e) => set("amount", e.target.value)} required /></Form.Group></Col>
+            <Col md={4}><Form.Group className="mb-3"><Form.Label>Valuta</Form.Label><Form.Control value={form.currency} onChange={(e) => set("currency", e.target.value)} /></Form.Group></Col>
+          </Row>
+          <Row>
+            <Col md={4}><Form.Group className="mb-3"><Form.Label>Ciclo *</Form.Label><Form.Select value={form.billingCycle} onChange={(e) => set("billingCycle", e.target.value as BillingCycle)}>{BILLING_CYCLE.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}</Form.Select></Form.Group></Col>
+            <Col md={4}><Form.Group className="mb-3"><Form.Label>Durata *</Form.Label><Form.Select value={form.contractTerm} onChange={(e) => set("contractTerm", e.target.value as ContractTerm)}>{CONTRACT_TERM.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}</Form.Select></Form.Group></Col>
+            <Col md={4}><Form.Group className="mb-3"><Form.Label>Metodo *</Form.Label><Form.Select value={form.method} onChange={(e) => set("method", e.target.value as PaymentMethod)}>{PAYMENT_METHOD.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}</Form.Select></Form.Group></Col>
+          </Row>
+
+          <div className="d-flex gap-2">
+            <Button type="submit" variant="dark" disabled={loading}>{loading ? "Invio…" : "Registra azienda"}</Button>
+            <Button type="button" variant="outline-secondary" onClick={() => window.location.reload()} disabled={loading}>Annulla</Button>
+          </div>
+        </Form>
+      </Card.Body></Card>
+    </div>
+  );
+}
+
+

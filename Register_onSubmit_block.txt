@@ -1,0 +1,99 @@
+async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setOkMsg(null);
+    setErrMsg(null);
+
+    // validazioni minime
+    if (!form.companyName.trim()) {
+      setLoading(false);
+      return setErrMsg("Ragione sociale obbligatoria");
+    }
+    if (!/\S+@\S+\.\S+/.test(form.contactEmail)) {
+      setLoading(false);
+      return setErrMsg("Email contatto non valida");
+    }
+    if (!/^\d{5}$/.test(form.billingZip)) {
+      setLoading(false);
+      return setErrMsg("CAP non valido (5 cifre)");
+    }
+    if (!/^[A-Za-z]{2}$/.test(form.billingProvince)) {
+      setLoading(false);
+      return setErrMsg("Provincia 2 lettere (es. RM)");
+    }
+    if (!form.password || form.password.length < 8) {
+      setLoading(false);
+      return setErrMsg("La password deve contenere almeno 8 caratteri.");
+    }
+    if (form.password !== form.passwordConfirm) {
+      setLoading(false);
+      return setErrMsg("Le password non coincidono.");
+    }
+
+    try {
+      // 1) Signup PUBLIC client + subscription
+      const payload: SignupPublicClientReq = {
+  client: {
+    companyName: form.companyName.trim(),
+    contactEmail: form.contactEmail.trim(),
+    employeeRange: form.employeeRange,
+    status: "ACTIVE",
+    billing: {
+      billingTaxId: form.billingTaxId.trim(),
+      billingEmail: form.billingEmail.trim(),
+      billingPec: form.billingPec.trim() || undefined,
+      billingSdiCode: form.billingSdiCode.trim() || undefined,
+      billingAddressLine1: form.billingAddressLine1.trim(),
+      billingZip: form.billingZip.trim(),
+      billingCity: form.billingCity.trim(),
+      billingProvince: form.billingProvince.trim().toUpperCase(),
+      billingCountry: form.billingCountry.trim(),
+    },
+  },
+  subscription: {
+    amount: parseFloat(form.amount.replace(",", ".")),
+    currency: form.currency || "EUR",
+    billingCycle: form.billingCycle,
+    contractTerm: form.contractTerm,
+    paymentMethod: form.method,
+    status: "ACTIVE",
+  },
+  options: { idempotencyKey: (crypto as any)?.randomUUID ? `req-${(crypto as any).randomUUID()}` : `req-${Math.random().toString(36).slice(2)}${Date.now()}` },
+};
+const res = await signupPublicClient(payload);
+
+      // 2) Salviamo password+email per l'attivazione (verrÃ  letta da /activate)
+      
+
+      // 3) Messaggio finale (senza ID)
+      setOkMsg(
+        `In attesa di verifica della mail.\n\n` +
+          `Abbiamo inviato un link di attivazione allâ€™indirizzo: ${form.contactEmail}.\n` +
+          `Apri la mail e segui il link: lâ€™app completerÃ  lâ€™attivazione usando la password che hai impostato ora.\n` +
+          `Dopo lâ€™attivazione, al primo accesso ti verrÃ  richiesto un codice di verifica a 6 cifre (OTP) inviato via email.`
+      );
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const msg =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        e?.message ||
+        "";
+
+      // 409 â†’ registrazione giÃ  avviata/non completata
+      if (status === 409) {
+        
+        setOkMsg(
+          `Registrazione giÃ  avviata.\n` +
+            `Abbiamo inviato (o reinviato) il link di attivazione a ${form.contactEmail}.\n` +
+            `Quando aprirai il link, useremo la password inserita qui per completare lâ€™attivazione.`
+        );
+      } else {
+        setErrMsg(String(msg || "Errore durante la registrazione"));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  
