@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/logo-transparent-light.png";
-import { saveMfaContext, saveTenantId } from "@/lib/api";
-import { tenantLogin, mfaComplete, mfaSetup, mfaVerify } from "@/lib/tenantAuth.service";
+import { login as apiLogin, completeMfa as apiCompleteMfa } from "@/api/api";
+import { mfaSetup, mfaVerify } from "@/lib/tenantAuth.service";
 // import { refreshAccess } from "@/lib/api";
 
 type LocationState = { redirectTo?: string } | null;
@@ -30,7 +30,7 @@ export default function Login() {
     } catch {}
   }, []);
 
-  const [tenantId, setTenantId] = useState("");
+  // Nessun tenant in login UI: header x-tenant-id viene iniettato in dev dal client API
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -54,10 +54,9 @@ export default function Login() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | undefined>(undefined);
   // Rimosso campo Client ID (tenant)
 
-  // Se c'è un MFA pending, porta subito alla verifica
+  // Nessun redirect automatico a /mfa/complete: MFA gestito inline
   useEffect(() => {
-    const hasMfa = !!sessionStorage.getItem("lmw_mfa_token");
-    if (hasMfa) navigate("/mfa/complete", { replace: true });
+    try { sessionStorage.removeItem("lmw_mfa_token"); } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -86,14 +85,7 @@ export default function Login() {
   // Niente refresh su /login: evitiamo chiamate a /refresh da qui
 
 
-  // Prefill via query (?tenant=...)
-  useEffect(() => {
-    try {
-      const qs = new URLSearchParams(window.location.search);
-      const qTenant = qs.get("tenant");
-      if (qTenant) { setTenantId(qTenant); saveTenantId?.(qTenant); }
-    } catch {}
-  }, []);
+  // Niente prefill tenant: gestito via proxy/header lato dev
 
   async function doLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -103,23 +95,8 @@ export default function Login() {
     setMfaStep(false);
     setMfaToken("");
     try {
-      const tId = tenantId.trim();
-      if (!tId) {
-        setError("Inserisci il Client ID dell'azienda");
-        setLoading(false);
-        return;
-      }
-      try { localStorage.setItem("lmw_tenant_id", tId); } catch {}
-      const data: any = await tenantLogin(tId, email.trim(), password);
-      // Auto-salvataggio tenantId (body o header) per x-tenant-id automatico
-      try {
-        const tidBody = (data as any)?.tenantId || (data as any)?.user?.clientId;
-        const tid = tidBody || tenantId;
-        if (tid) {
-          try { saveTenantId?.(String(tid)); } catch {}
-          localStorage.setItem("lmw_tenant_id", String(tid));
-        }
-      } catch {}
+      const data: any = await apiLogin(email.trim(), password);
+      // Nessun salvataggio tenant lato FE: header x-tenant-id solo in dev via env
 
       // Caso richiesta MFA nel body (200/201)
       try {
@@ -132,47 +109,13 @@ export default function Login() {
       } catch {}
 
       // Caso MFA non segnalato via 428 ma via payload/header 2xx
-      try {
-        const bodyMfaToken = (data as any)?.mfaToken;
-        if (bodyMfaToken) {
-          saveMfaContext({ token: bodyMfaToken, methods: (data as any)?.methods || (data as any)?.mfa?.methods });
-        }
-      } catch {}
-
-      const hasMfaToken = !!sessionStorage.getItem("lmw_mfa_token");
-      if (!data?.accessToken && hasMfaToken) {
-        try {
-          localStorage.removeItem("lmw_token");
-          localStorage.setItem("lmw_user_email", email.trim());
-        } catch {}
-        navigate("/mfa/complete", { replace: true });
-        return;
-      }
+      // Nessun salvataggio del token in storage; cookie-first
 
       // Setup MFA richiesto (prima configurazione) in risposta 2xx
       if ((data as any)?.requireMfaSetup === true && (data as any)?.setupToken) { const st = String((data as any).setupToken || ''); setSetupToken(st); setSetupStep(true); return; }
 
       // ? Success senza MFA
-      if (data?.accessToken) {
-        try {
-          localStorage.setItem("lmw_token", data.accessToken);
-          localStorage.setItem("lmw_user_email", email.trim());
-
-          // mappa ruolo BE -> FE
-          const beRole = (data?.user?.role ?? "") as string;
-          if (typeof beRole === "string" && beRole) {
-            const upper = beRole.toUpperCase();
-            const role = upper === "ADMIN" ? "admin" : upper === "SUPERHOST" ? "superhost" : "user";
-            localStorage.setItem("lmw_user_role", role);
-          }
-
-          if (remember) {
-            const role = localStorage.getItem("lmw_user_role") || "user";
-            localStorage.setItem("letmeknow_auth", JSON.stringify({ email: email.trim(), role }));
-          }
-        } catch {}
-
-        try { localStorage.setItem("lmw_session", "1"); } catch {}
+      if (!data?.mfaRequired) {
         const target = locState?.redirectTo || "/home";
         navigate(target, { replace: true });
         return;
@@ -215,15 +158,7 @@ export default function Login() {
                 <form onSubmit={doLogin}>
 
                   <div className="mb-3">
-                    <label className="form-label">Azienda (Client ID)</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="es. acme"
-                      value={tenantId}
-                      onChange={(e) => setTenantId(e.target.value)}
-                      required
-                    />
+                    {/* Tenant non richiesto in UI */}
                   </div>
 
                   <div className="mb-3">
@@ -360,12 +295,10 @@ export default function Login() {
                         if (code.length !== 6) { setMfaError("Inserisci un codice a 6 cifre."); return; }
                         try {
                           setMfaSubmitting(true);
-                          const out = await mfaComplete(mfaToken, code);
-                          if ((out as any)?.accessToken) {
-                            try { localStorage.setItem("lmw_session", "1"); } catch {}
-                            setMfaStep(false); setMfaToken(""); setOtp(""); setMfaError(null);
-                            navigate("/home", { replace: true });
-                          } else setMfaError("Risposta inattesa dal server.");
+                          const out = await apiCompleteMfa(mfaToken, code);
+                          // Cookie-first: nessun token salvato lato FE; se la chiamata è OK, procedi
+                          setMfaStep(false); setMfaToken(""); setOtp(""); setMfaError(null);
+                          navigate("/home", { replace: true });
                         } catch (err: any) {
                           const status = err?.status || err?.response?.status;
                           if (status === 401) setMfaError("Codice non valido.");

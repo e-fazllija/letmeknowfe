@@ -1,9 +1,9 @@
 // src/context/AuthContext.tsx
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import api, { v1, saveTenantId, refreshAccess, clearReportsLookupsCache } from "@/lib/api";
-import { verifyOtpOnce } from "@/lib/tenantAuth.service";
+import { clearReportsLookupsCache } from "@/lib/api";
+import { api as http, me as apiMe, refresh as apiRefresh, logout as apiLogout, completeMfa as apiCompleteMfa, login as apiLogin } from "@/api/api";
 import { useNavigate } from "react-router-dom";
-import { loginTenantUser, signupTenantUser } from "@/lib/auth";
+import { signupTenantUser } from "@/lib/auth";
 
 export type Role = "admin" | "agent" | "user" | "superhost";
 export type Permission = "REPORTS_VIEW" | "REPORT_CREATE" | "REPORTS_MANAGE" | "SETTINGS_ADMIN";
@@ -33,6 +33,7 @@ type AuthContextType = {
   verifyOtp?: (code: string) => Promise<boolean>;
   authPhase?: AuthPhase;
   isMfaMode?: () => boolean;
+  ready?: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,14 +57,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [mfa, setMfa] = useState<MfaState>({ required: false });
   const [authPhase, setAuthPhase] = useState<AuthPhase>('anon');
+  const [ready, setReady] = useState(false);
   const navigate = useNavigate();
 
-  // Bootstrap live: usa esclusivamente /v1/tenant/auth/me (cookie-first)
+  // Bootstrap live: refresh() + /me (cookie-first)
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get(v1('tenant/auth/me'));
-        const data: any = res?.data ?? null;
+        await apiRefresh().catch(() => {});
+        const data: any = await apiMe();
         if (data) {
           const roleNorm = data.role ? String(data.role).toLowerCase() as Role : undefined;
           const next: User = {
@@ -77,10 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           if (import.meta.env.DEV) console.warn('[auth] bootstrap /me empty response');
           setUser(null);
+          setAuthPhase('anon');
         }
       } catch (err) {
-        try { console.warn('[auth] bootstrap /me FAIL', err); } catch {}
+        try { console.warn('[auth] bootstrap FAIL', err); } catch {}
         setUser(null);
+        setAuthPhase('anon');
+      }
+      finally {
+        setReady(true);
       }
     })();
   }, []);
@@ -97,8 +104,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(EMAIL_KEY);
       localStorage.removeItem(ROLE_KEY);
       localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+      try { localStorage.removeItem("access_token"); } catch {}
+      try { localStorage.removeItem("refresh_token"); } catch {}
       localStorage.removeItem("lmw_client_id");
       localStorage.removeItem("x-tenant-id");
       localStorage.removeItem("lmw_first_admin_granted");
@@ -108,40 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     emitGlobalLogout();
   }
 
-  /** Bootstrap: inizializza tenant + user “light” se c’è già un token */
+  // Rimozione bootstrap basato su token locali (cookie-first only)
   useEffect(() => {
     try {
-      // Seed tenant da env se assente
-      const hasTenant = localStorage.getItem(TENANT_KEY);
-      const envTenant = (import.meta as any)?.env?.VITE_DEV_TENANT_ID as string | undefined;
-      if (import.meta.env.DEV && !hasTenant && envTenant && envTenant.trim()) {
-        saveTenantId(envTenant.trim());
-      }
-
-      const token = localStorage.getItem("access_token");
-      const email = localStorage.getItem(EMAIL_KEY) || "";
-      const savedRole = (localStorage.getItem(ROLE_KEY) as Role | null) || "user";
-
-      if (token) {
-        // Se ho token, considero autenticato e creo utente light
-        setUser({ email, role: savedRole });
-        setAuthPhase('auth');
-        return;
-      }
-
-      // fallback vecchia versione
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as User;
-        if (parsed?.email && (parsed.role === "admin" || parsed.role === "user" || parsed.role === "superhost")) {
-          setUser(parsed);
-          localStorage.setItem(EMAIL_KEY, parsed.email);
-          localStorage.setItem(ROLE_KEY, parsed.role);
-        }
-      }
-    } catch {
-      /* ignore */
-    }
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+    } catch {}
   }, []);
 
   // Ascolta logout globale (es. intercettori API)
@@ -164,45 +143,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener(AUTH_LOGOUT_EVENT, onLogout);
   }, []);
 
-  // Refresh silenzioso: se non abbiamo token in memoria, prova a recuperarlo via cookie
+  // Refresh silenzioso: spostato nel bootstrap principale (apiRefresh + me)
   useEffect(() => {
-    (async () => {
-      try {
-        const hasToken = !!localStorage.getItem("access_token");
-        if (hasToken) return;
-        // Guard: NON fare refresh su /login o in MFA
-        try {
-          const hash = typeof window !== 'undefined' ? window.location.hash : '';
-          const path = typeof window !== 'undefined' ? window.location.pathname : '';
-          const onLogin = (hash && hash.startsWith('#/login')) || path === '/login';
-          const inMfa = ((): boolean => { try { return !!sessionStorage.getItem('lmw_mfa_token'); } catch { return false; } })();
-          if (onLogin || inMfa) return;
-        } catch { /* ignore */ }
-        const newTok = await refreshAccess();
-        if (!newTok) return;
-        const email = localStorage.getItem(EMAIL_KEY) || "";
-        const roleSaved = (localStorage.getItem(ROLE_KEY) as Role | null) || "user";
-        setUser({ email, role: roleSaved });
-        setAuthPhase('auth');
-      } catch {
-        /* ignore */
-      }
-    })();
+    // no-op: handled above
   }, []);
 
-  // Bootstrap profilo su mount: se sessione attiva ma user incompleto, carica /me
+  // Bootstrap profilo su mount: se user incompleto, carica /me
   useEffect(() => {
     try {
-      // cookie-first: usiamo localStorage.lmw_session per segnalare una sessione FE attiva
-      const hasSession = localStorage.getItem('lmw_session') === '1';
       const needsProfile = !user?.email || !user?.role;
-      if (!hasSession || !needsProfile) return;
+      if (!needsProfile) return;
     } catch { return; }
 
     (async () => {
       try {
-        const res = await api.get(v1('tenant/auth/me'), { withCredentials: true });
-        const data: any = res?.data;
+        const data: any = await apiMe();
         if (data) {
           const roleNorm = data.role ? String(data.role).toLowerCase() as Role : null;
           setUser({
@@ -213,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setAuthPhase('auth');
           if (import.meta.env.DEV) console.info('[auth] bootstrap /me OK', { email: data.email, role: roleNorm });
         } else {
-          console.warn('[auth] /me returned empty body — UI limitata');
+          console.warn('[auth] /me returned empty body – UI limitata');
         }
       } catch (e) {
         console.warn('[auth] /me bootstrap error', e);
@@ -222,57 +177,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Reagisci a cambiamenti storage (token/email/role) – utile dopo MFA */
+  /** Reagisci a cambiamenti storage – non usiamo token locali (cookie-first) */
   useEffect(() => {
-    const onStorage = () => {
-      const token = localStorage.getItem("access_token");
-      const email = localStorage.getItem(EMAIL_KEY) || "";
-      const roleSaved = (localStorage.getItem(ROLE_KEY) as Role | null) || "user";
-      if (token) setUser({ email, role: roleSaved });
-    };
+    const onStorage = () => { /* no-op */ };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  /** LOGIN reale: usa il ruolo salvato da auth.ts (lmw_user_role) */
-  const login = async (email: string, password: string, remember = true) => {
+  /** LOGIN reale: cookie-first + eventuale MFA */
+  const login = async (email: string, password: string, _remember = true) => {
     if (!email || !password) throw new Error("Email e password obbligatorie");
     setAuthPhase('login');
-    // Salva subito l'email per la label navbar
+    try { setUser((prev) => ({ email, role: (prev?.role || 'user') as Role, permissions: prev?.permissions })); } catch {}
     try {
-      const roleSaved = (localStorage.getItem(ROLE_KEY) as Role | null) || 'user';
-      setUser((prev) => ({ email, role: (prev?.role || roleSaved) as Role, permissions: prev?.permissions }));
-    } catch {}
-    try {
-      await loginTenantUser({ email, password }); // scrive EMAIL_KEY/TENANT_KEY e forse ROLE_KEY
-    } catch (e: any) {
-      const status = e?.status || e?.response?.status;
-      if (status === 428 || e?.mfaRequired) {
-        try {
-          const mfaToken = ((): string | null => { try { return sessionStorage.getItem("lmw_mfa_token"); } catch { return null; } })();
-          const tenantId = ((): string | null => { try { return localStorage.getItem("lmw_client_id"); } catch { return null; } })();
-          setMfa({ required: true, token: mfaToken, email, tenantId });
-          setAuthPhase('mfa');
-        } catch {}
-        return; // stop here, UI should handle MFA
+      const out: any = await apiLogin(email.trim(), password);
+      if (out?.mfaRequired) {
+        const token = out?.mfaToken || null;
+        setMfa({ required: true, token, email, tenantId: null });
+        setAuthPhase('mfa');
+        return;
       }
+      const data: any = await apiMe();
+      if (data) {
+        const roleNorm = data.role ? String(data.role).toLowerCase() as Role : 'user';
+        setUser({ email: data.email ?? email, role: (roleNorm as Role), permissions: Array.isArray(data.permissions) ? data.permissions : [] });
+        setAuthPhase('auth');
+        navigate('/home', { replace: true });
+        return;
+      }
+      setAuthPhase('login');
+    } catch (e) {
       throw e;
     }
-
-    // Se non scatta MFA, a questo punto BE può aver già dato token (gestito nella pagina login).
-    // Qui aggiorno lo stato utente in ogni caso.
-    let role: Role = "user";
-    try {
-      const r = localStorage.getItem(ROLE_KEY) as Role | null;
-      if (r === "admin" || r === "user" || r === "superhost") role = r;
-    } catch {}
-
-    const u: User = { email, role };
-    setUser(u);
-    // se l'access token è già presente (no MFA), siamo in fase auth
-    try { if (localStorage.getItem("access_token")) setAuthPhase('auth'); } catch {}
-    if (remember) localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-    else localStorage.removeItem(STORAGE_KEY);
   };
 
   /** SIGNUP reale (non fa auto-login) */
@@ -283,62 +219,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /** LOGOUT: pulizia completa */
   const logout = async () => {
-    try { await api.post(v1("tenant/auth/logout"), {}, { withCredentials: true }); } catch {}
+    try { await apiLogout(); } catch {}
     try { logoutSilently(); setAuthPhase('anon'); } finally { navigate("/login", { replace: true }); }
   };
 
   const verifyOtp = async (code: string): Promise<boolean> => {
     if (!mfa.required || !mfa.token) throw new Error("MFA non inizializzato");
     const clean = String(code || '').replace(/\D/g, '');
-
-    const res = await verifyOtpOnce(clean, mfa.token);
-
-    if (res.status >= 200 && res.status < 300) {
-      const accessToken = (res.data as any)?.access_token || (res.data as any)?.accessToken || null;
-      if (accessToken) {
-        try {
-          localStorage.setItem('access_token', accessToken);
-          localStorage.setItem('lmw_token', accessToken);
-        } catch {}
-      }
-      try { localStorage.setItem('lmw_session', '1'); } catch {}
+    try {
+      await apiCompleteMfa(mfa.token, clean);
       setMfa({ required: false, token: null, email: null, tenantId: null });
-      // Recupera profilo reale dal BE (email/role/permissions); nessun fallback locale
+      // Load profile
       try {
-        const meRes = await api.get(v1('tenant/auth/me'), { withCredentials: true });
-        const data = meRes?.data ?? null;
+        const data: any = await apiMe();
         if (data) {
           setUser({
             email: (data as any).email ?? (mfa.email || ''),
             role: (data as any).role ? String((data as any).role).toLowerCase() as Role : (user?.role || 'user'),
             permissions: Array.isArray((data as any).permissions) ? (data as any).permissions : [],
           });
-        } else {
-          try { console.warn('[auth] /me returned empty body — UI limitata (nessun fallback admin)'); } catch {}
         }
-      } catch (e) {
-        try { console.warn('[auth] /me error — UI limitata (nessun fallback admin)', e); } catch {}
-      }
-
+      } catch {}
       setAuthPhase('auth');
       navigate('/home');
       return true;
-    }
-
-    if (res.status === 401 || res.status === 403) {
+    } catch (e: any) {
+      const status = e?.status || e?.response?.status;
+      if (status === 429) {
+        try { console.warn('Troppe richieste: attendi qualche secondo e riprova.'); } catch {}
+        return false;
+      }
+      try { console.warn('OTP non valido o scaduto.'); } catch {}
       try { sessionStorage.removeItem('lmw_mfa_token'); } catch {}
       setMfa({ required: false, token: null, email: null, tenantId: null });
-      try { console.warn('OTP scaduto o non valido, rifai l\’accesso.'); } catch {}
       navigate('/login');
       return false;
     }
-
-    if (res.status === 429) {
-      try { console.warn('Troppe richieste: attendi qualche secondo e riprova.'); } catch {}
-      return false;
-    }
-
-    return false;
   };
 
   /** Check permesso (usa prima permissions BE, poi fallback ROLE_PERMISSIONS) */
@@ -351,20 +267,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = () => (user?.role === 'admin') || has('REPORT_CREATE' as Permission);
 
-  const isAuthenticated = ((): boolean => {
-    try {
-      const access = !!localStorage.getItem('access_token');
-      const session = localStorage.getItem('lmw_session') === '1';
-      return access || session;
-    } catch { return false; }
-  })();
+  const isAuthenticated = authPhase === 'auth';
 
   // Helper pubblico: true se in fase MFA
   const isMfaMode = () => authPhase === 'mfa' || mfa.required === true;
 
   const value = useMemo(
-    () => ({ isAuthenticated, user, setUser, login, signup, logout, has, isAdmin, mfa, verifyOtp, authPhase, isMfaMode }),
-    [isAuthenticated, user, mfa, authPhase]
+    () => ({ isAuthenticated, user, setUser, login, signup, logout, has, isAdmin, mfa, verifyOtp, authPhase, isMfaMode, ready }),
+    [isAuthenticated, user, mfa, authPhase, ready]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
