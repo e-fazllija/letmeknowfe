@@ -1,0 +1,79 @@
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <Badge bg={(m as any).visibility === 'INTERNAL' ? 'secondary' : 'primary'}>{(m as any).visibility || 'INTERNAL'}</Badge>{' '}
+                        <strong>{m.author || '-'}</strong>
+                      </div>
+                      <small>{new Date(m.createdAt).toLocaleString()}</small>
+                    </div>
+                    <div className="mt-1" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>
+                    {(m as any).visibility === 'INTERNAL' && (
+                      <div className="mt-2 d-flex" style={{ gap: 8 }}>
+                        <Button size="sm" variant="outline-secondary" onClick={async () => {
+                          const next = prompt('Modifica nota', String((m as any).note || ''));
+                          if (next == null) return;
+                          try { await patchMessageNote(id, m.id, next); setToast({ show: true, message: 'Nota aggiornata', variant: 'success' }); const list = await getMessages(id, 'ALL'); setMessages(list as Message[]); }
+                          catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: 'Non hai i permessi per questa operazione', variant: 'danger' }); else setToast({ show: true, message: 'Errore salvataggio nota', variant: 'danger' }); }
+                        }}>Modifica nota</Button>
+                        <Button size="sm" variant="outline-secondary" onClick={async () => {
+                          const next = prompt('Modifica testo', String(m.body || ''));
+                          if (next == null) return;
+                          try { await patchMessageBody(id, m.id, next); setToast({ show: true, message: 'Messaggio aggiornato', variant: 'success' }); const list = await getMessages(id, 'ALL'); setMessages(list as Message[]); }
+                          catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: 'Non hai i permessi per questa operazione', variant: 'danger' }); else setToast({ show: true, message: 'Errore salvataggio messaggio', variant: 'danger' }); }
+                        }}>Modifica body</Button>
+                      </div>
+                    )}
+                  </ListGroup.Item>
+                ))}
+                {shownMessages.length === 0 && (
+                  <div className="text-muted">Nessun messaggio.</div>
+                )}
+              </ListGroup>
+            </Card.Body>
+          </Card>
+
+          {(isAdmin || isAgent) && (
+            <Card className="shadow-sm mt-3">
+              <Card.Header><strong>Nuovo messaggio</strong></Card.Header>
+              <Card.Body>
+                <Form onSubmit={submitMsg(onMessageSubmit)}>
+                  <Row className="g-2">
+                    <Col md={9}>
+                      <Form.Control as="textarea" rows={3} placeholder="Scrivi un messaggio" disabled={msgBusy} {...regMsg('body')} />
+                    </Col>
+                    <Col md={3}>
+                      <Form.Select disabled={msgBusy} {...regMsg('visibility')} defaultValue={'INTERNAL'}>
+                        <option value="INTERNAL">INTERNAL</option>
+                        <option value="PUBLIC">PUBLIC</option>
+                      </Form.Select>
+                      <div className="mt-2 d-flex justify-content-end">
+                        <Button type="submit" disabled={msgBusy} variant="dark">Invia</Button>
+                      </div>
+                    </Col>
+                  </Row>
+                </Form>
+              </Card.Body>
+            </Card>
+          )}
+        </Col>
+        <Col md={4}>
+          <Card className="shadow-sm">
+            <Card.Header><strong>Allegati</strong></Card.Header>
+            <Card.Body>
+              <Form.Group controlId="fileUpload">
+                <Form.Control type="file" multiple accept="image/png,image/jpeg,application/pdf,text/plain" disabled={uploading} onChange={(e) => onFilesSelected(e.currentTarget.files)} />
+              </Form.Group>
+              <small className="text-muted d-block mt-2">Max 3 file, 10MB ciascuno, 20MB totali</small>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      <ToastContainer position="bottom-end" className="p-3">
+        <Toast bg={toast.variant === 'danger' ? 'danger' : toast.variant === 'success' ? 'success' : 'primary'} onClose={() => setToast({ ...toast, show: false })} show={toast.show} delay={3000} autohide>
+          <Toast.Body className="text-white">{toast.message}</Toast.Body>
+        </Toast>
+      </ToastContainer>
+    </div>
+  );
+}
+

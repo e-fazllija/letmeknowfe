@@ -50,7 +50,14 @@ export default function Reports() {
   const { departments } = useDepartments();
   const { categories } = useCategories(filters.departmentId || undefined);
   const qDebounced = useDebounced(filters.q, 300);
-  const { reports, loading, error } = useReports({ ...filters, q: qDebounced });
+  const { reports, loading, error } = useReports({
+    page: filters.page,
+    pageSize: filters.pageSize,
+    q: (qDebounced || '').trim() || undefined,
+    status: filters.status || undefined,
+    departmentId: filters.departmentId || undefined,
+    categoryId: filters.categoryId || undefined,
+  });
 
   const deptName = useMemo(() => new Map(departments.map(d => [d.id, d.name])), [departments]);
   const catName = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);

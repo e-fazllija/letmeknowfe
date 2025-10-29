@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { loginTenantUser, signupTenantUser } from "@/lib/auth";
 
 export type Role = "admin" | "agent" | "user" | "superhost";
-export type Permission = "REPORTS_VIEW" | "REPORT_CREATE" | "REPORTS_MANAGE";
+export type Permission = "REPORTS_VIEW" | "REPORT_CREATE" | "REPORTS_MANAGE" | "SETTINGS_ADMIN";
 
 type User = { email: string; role: Role; permissions?: Permission[] };
 

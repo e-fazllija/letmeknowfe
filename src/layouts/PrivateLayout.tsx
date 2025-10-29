@@ -7,7 +7,7 @@ import Dropdown from "react-bootstrap/Dropdown";
 import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 
-function UserBadge() {
+export function UserBadge() {
   const auth: any = useAuth();
   const email: string = auth?.user?.email ?? "—";
   const role: string = auth?.user?.role ?? "—"; // BE manda minuscolo

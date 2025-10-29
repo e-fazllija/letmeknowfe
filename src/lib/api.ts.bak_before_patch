@@ -3,27 +3,70 @@ import axios from "axios";
 
 import type { Report, ReportMessage } from "./report.dto";
 
-// --- ENV origin/prefix (cookie-first; no rewrite to window.origin) ---
-export const ORIGIN = (import.meta.env.VITE_API_BASE_URL ?? "").trim() || "http://localhost:3000";
-const PREFIX = (import.meta.env.VITE_API_PREFIX ?? "/v1").trim();
+/** ENV lette da Vite */
+const RAW_BASE   = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+const RAW_PREFIX = (import.meta.env.VITE_API_PREFIX    as string | undefined) ?? "/v1";
 
-// Helper endpoint v1 idempotente
-export function v1(p: string): string {
-  if (!p) return PREFIX;
-  const url = p.trim();
-  // assoluti: lasciali stare
-  if (/^https?:\/\//i.test(url)) return url;
-  // normalizza
-  const normPrefix = PREFIX.endsWith("/") ? PREFIX.slice(0, -1) : PREFIX;
-  const normUrl = url.startsWith("/") ? url : `/${url}`;
-  // già prefissato? ("/v1" oppure "/v1/...")
-  if (normUrl === normPrefix || normUrl.startsWith(`${normPrefix}/`)) {
-    return normUrl;
+/** Restituisce SOLO origin (protocol + host + porta), ignorando path & query */
+function hostOrigin(url: string | undefined): string {
+  const fallback = "http://localhost:3000";
+  if (!url || !url.trim()) return fallback;
+  const s = url.trim();
+
+  // Solo porta (:3000 o 3000)
+  if (/^:?\d+($|\/)/.test(s)) {
+    const port = s.startsWith(":") ? s.slice(1) : s;
+    return `http://localhost:${port.replace(/\/.*$/, "")}`;
   }
-  return `${normPrefix}${normUrl}`;
+
+  const withProto = /^https?:\/\//i.test(s) ? s : `http://${s.replace(/^\/+/, "")}`;
+  try {
+    const u = new URL(withProto);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return fallback;
+  }
 }
 
-console.log("[API] origin =", ORIGIN, " prefix =", PREFIX);
+/** Normalizza prefix: UNO slash iniziale, nessuno finale */
+function normalizePrefix(p: string): string {
+  let s = (p || "").trim();
+  if (!s) return "/v1";
+  s = "/" + s.replace(/^\/+/, "").replace(/\/+$/, "");
+  return s;
+}
+
+const IS_DEV = import.meta.env.DEV;
+const BASE_ORIGIN = IS_DEV ? "" : hostOrigin(RAW_BASE);
+const PREFIX      = normalizePrefix(RAW_PREFIX);
+
+console.log("[API] origin =", BASE_ORIGIN, "prefix =", PREFIX);
+
+/** Sanifica path/URL per le API */
+function sanitizeRelativePath(u: string): string {
+  let p = String(u || "").trim();
+
+  if (/^https?:\/\//i.test(p)) {
+    try {
+      const full = new URL(p);
+      p = full.pathname + (full.search || "");
+    } catch { /* ignore */ }
+  }
+
+  const qIdx = p.indexOf("?");
+  const pathname = (qIdx >= 0 ? p.slice(0, qIdx) : p) || "";
+  const query = qIdx >= 0 ? p.slice(qIdx) : "";
+
+  let clean = pathname.replace(/^\/+/, "");
+  clean = clean.replace(/^(api\/)?v1\/+/, "");
+
+  return `${PREFIX}/${clean}${query}`;
+}
+
+/** Helper pubblico per costruire endpoint */
+export function v1(path: string): string {
+  return sanitizeRelativePath(path);
+}
 
 // --- Public enums (aligned to BE) ---
 export const REPORT_SOURCES = ["WEB", "PHONE", "EMAIL", "OTHER"] as const;
@@ -55,10 +98,10 @@ export function safeFilename(name: string): string {
     .slice(0, 128);
 }
 
-/** Istanza Axios: baseURL dal ENV, cookie-first */
+/** Istanza Axios (baseURL = SOLO origin; il path lo aggiunge v1() o l'interceptor) */
 const api = axios.create({
-  baseURL: ORIGIN,
-  withCredentials: true,
+  baseURL: BASE_ORIGIN, // in dev stringa vuota per usare proxy Vite same-origin
+  withCredentials: true, // cookie HttpOnly sempre
   timeout: 20000,
   headers: { "Content-Type": "application/json" },
 });
@@ -184,9 +227,19 @@ api.interceptors.request.use((config) => {
   }
 
   if (typeof config.url === "string") {
-    // Prefissa sempre i path relativi con il PREFIX tramite helper v1
     if (!/^https?:\/\//i.test(config.url)) {
-      config.url = v1(config.url);
+      config.url = sanitizeRelativePath(config.url);
+    } else {
+      try {
+        // Se abbiamo una base origin (solo prod), converti eventuali URL assoluti della stessa origin a path con prefisso v1.
+        if (BASE_ORIGIN) {
+          const u = new URL(config.url);
+          if (`${u.protocol}//${u.host}` === BASE_ORIGIN) {
+            const fixed = sanitizeRelativePath(u.pathname + (u.search || ""));
+            config.url = BASE_ORIGIN + fixed;
+          }
+        }
+      } catch { /* ignore */ }
     }
   }
 
@@ -422,8 +475,6 @@ export async function refreshAccess(): Promise<string | null> {
     return null;
   }
 }
-
-
 
 
 

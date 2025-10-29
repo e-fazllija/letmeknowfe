@@ -31,10 +31,10 @@ export async function fetchDepartmentsPublic(): Promise<Dept[]> {
   return arr.map(adaptDepartment).filter((d: Dept) => d.id && d.name);
 }
 
-export async function fetchCategoriesPublic(departmentId: string): Promise<Cat[]> {
+export async function fetchCategoriesPublic(departmentId?: string): Promise<Cat[]> {
   const tenantId = getSavedTenantId();
   const url = new URL(v1("public/categories"), window.location.origin);
-  url.searchParams.set("departmentId", departmentId);
+  if (departmentId) url.searchParams.set("departmentId", departmentId);
   const resp = await fetch(url.toString(), {
     method: "GET",
     credentials: "include",
@@ -64,3 +64,14 @@ export async function fetchCategoriesTenant(departmentId?: string): Promise<Cat[
   const arr = Array.isArray(res.data) ? res.data : res.data?.items ?? [];
   return arr.map(adaptCategory).filter((c: Cat) => c.id && c.name);
 }
+
+// --- Compat: alias coerenti e default export ---
+export const fetchDepartments = fetchDepartmentsPublic;
+export const fetchCategories = fetchCategoriesPublic;
+const lookups = {
+  getPublicDepartments: fetchDepartmentsPublic,
+  getPublicCategories: fetchCategoriesPublic,
+  fetchDepartments,
+  fetchCategories,
+};
+export default lookups;

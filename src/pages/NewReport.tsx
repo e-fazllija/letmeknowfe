@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -283,14 +283,14 @@ export default function NewReport() {
                   <Form.Label>Reparto</Form.Label>
                   {loadingDeps ? (
                     <div className="form-control d-flex align-items-center" style={{ height: 38 }}>
-                      <Spinner size="sm" className="me-2" /> Caricamento…
+                      <Spinner size="sm" className="me-2" /> Caricamentoâ€¦
                     </div>
                   ) : (
                     <Form.Select
                       isInvalid={!!errors.department}
                       {...register("department", {
                         required: true,
-                        onChange: (e) => {
+                        onChange: (_e) => {
                           try {
                             setValue("category", "", { shouldValidate: true });
                           } catch {
@@ -310,7 +310,7 @@ export default function NewReport() {
                   {!loadingDeps && !departments.length && (
                     <small className="text-danger">Nessun reparto disponibile</small>
                   )}
-                  {errorDeps && <small className="text-danger">{errorDeps}</small>}
+                  {errorDeps ? <small className="text-danger">{String(errorDeps)}</small> : null}
                   <Form.Control.Feedback type="invalid">{errors.department?.message as string}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
@@ -319,7 +319,7 @@ export default function NewReport() {
                   <Form.Label>Categoria</Form.Label>
                   {loadingCats ? (
                     <div className="form-control d-flex align-items-center" style={{ height: 38 }}>
-                      <Spinner size="sm" className="me-2" /> Caricamento…
+                      <Spinner size="sm" className="me-2" /> Caricamentoâ€¦
                     </div>
                   ) : (
                     <Form.Select isInvalid={!!errors.category} disabled={!categories.length} {...register("category", { required: true })} defaultValue="">
@@ -329,10 +329,10 @@ export default function NewReport() {
                       ))}
                     </Form.Select>
                   )}
-                  {!loadingCats && selectedDept && !categories.length && (
+                  {!loadingCats && !!selectedDept && !categories.length && (
                     <small className="text-danger">Nessuna categoria per il reparto selezionato</small>
                   )}
-                  {errorCats && <small className="text-danger">{errorCats}</small>}
+                  {errorCats ? <small className="text-danger">{String(errorCats)}</small> : null}
                   <Form.Control.Feedback type="invalid">{errors.category?.message as string}</Form.Control.Feedback>
                 </Form.Group>
               </Col>

@@ -2,6 +2,7 @@
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import "@/lib/api.refresh.queue";
 import "@/lib/api.auth.header";
+import "@/lib/api.headers.v2";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { PublicLayout } from "./layouts/PublicLayout";
@@ -16,7 +17,9 @@ import Home from "./pages/Home";
 import NewReport from "./pages/NewReport";
 import Reports from "./pages/Reports";
 import ReportDetail from "./pages/ReportDetail";
-import Settings from "./pages/Settings";
+import ReportDetailV2 from "./pages/ReportDetailV2";
+import SettingsPage from "./pages/settings/SettingsPage";
+import { FEATURE_SETTINGS } from "@/config";
 
 // NUOVE PAGINE (attivazione + MFA)
 import Activate from "./pages/Activate";
@@ -82,8 +85,10 @@ export default function App() {
             <Route path="/new-report" element={<RequirePermission perm="REPORT_CREATE"><NewReport /></RequirePermission>} />
             <Route path="/new" element={<RequirePermission perm="REPORT_CREATE"><NewReport /></RequirePermission>} />
             <Route path="/reports" element={<RequirePermission perm="REPORTS_VIEW"><Reports /></RequirePermission>} />
-            <Route path="/reports/:id" element={<RequirePermission perm="REPORTS_VIEW"><ReportDetail /></RequirePermission>} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/reports/:id" element={<RequirePermission perm="REPORTS_VIEW">{import.meta.env.VITE_DETAIL_V2 === 'true' ? <ReportDetailV2 /> : <ReportDetail />}</RequirePermission>} />
+            {FEATURE_SETTINGS && (
+              <Route path="/settings" element={<SettingsPage />} />
+            )}
           </Route>
 
           {/* fallback: redirect a login */}
