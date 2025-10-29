@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Card, Col, Row, Spinner } from 'react-bootstrap';
-import { getStats, type Stats } from '@/lib/settings.service';
+import { getSettingsStats } from '@/lib/settings.service';
 
 export default function SettingsStatsTab() {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -12,7 +12,7 @@ export default function SettingsStatsTab() {
       try {
         setLoading(true);
         setError(null);
-        const s = await getStats();
+        const s = await getSettingsStats();
         setStats(s);
       } catch (e: any) {
         setError(e?.message || 'Errore caricamento KPI');
@@ -40,4 +40,3 @@ export default function SettingsStatsTab() {
     </Row>
   );
 }
-

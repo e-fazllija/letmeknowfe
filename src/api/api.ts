@@ -54,6 +54,21 @@ api.interceptors.request.use((config) => {
     config.url = config.url.replace(/^\/+/, "");
   }
 
+  // If baseURL is empty or not including a version prefix, add VITE_API_PREFIX to relative paths
+  try {
+    const hasBase = !!BASE_URL && BASE_URL !== "/";
+    const needsPrefixing = !hasBase;
+    if (needsPrefixing && typeof config.url === "string" && !/^https?:\/\//i.test(config.url)) {
+      const rawPrefix = ((import.meta as any).env?.VITE_API_PREFIX ?? "/v1").toString();
+      const normPrefix = rawPrefix.replace(/\/$/, "");
+      const prefixNoLead = normPrefix.replace(/^\//, "");
+      const normUrl = config.url.replace(/^\/+/, "");
+      if (!normUrl.toLowerCase().startsWith(prefixNoLead.toLowerCase() + "/")) {
+        config.url = `${normPrefix}/${normUrl}`;
+      }
+    }
+  } catch { /* ignore */ }
+
   // For refresh endpoint avoid sending explicit Content-Type
   const urlLower = String(config.url || "").toLowerCase();
   if (urlLower.endsWith("tenant/auth/refresh") && config.headers) {
@@ -142,3 +157,13 @@ export async function me<T = any>(): Promise<T | null> {
   const { data } = await api.get("tenant/auth/me");
   return (data as any) ?? null;
 }
+
+// --- Compatibilità cross-module ---
+// Export default client (retrocompatibilità con @/lib/api)
+export default api;
+
+// Path builder v1 — usa il prefisso da .env (es. /v1)
+export const v1 = (path = "") => {
+  const prefix = (import.meta as any).env?.VITE_API_PREFIX ?? "/v1";
+  return `${String(prefix).replace(/\/$/, "")}/${String(path).replace(/^\/+/, "")}`;
+};

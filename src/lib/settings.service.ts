@@ -1,147 +1,86 @@
-import api, { v1 } from "@/lib/api";
-import { CSRF_PROTECTION } from "@/config";
-import { getCsrfTokenFromCookie } from "@/lib/csrf";
+import apiDefault, { v1 } from "@/lib/api";
 
-// Types
+const api = apiDefault;
+
+const asFeature = <T>(p: Promise<T>) =>
+  p.catch((err: any) => {
+    const sc = err?.response?.status;
+    if (sc === 404 || sc === 501) {
+      return { __featureDisabled: true } as any as T;
+    }
+    throw err;
+  });
+
+/* -------------------- Types -------------------- */
+export type StatsResponse = {
+  kpis: { reports: number; avgDaysToReceive: number; avgDaysToClose: number; open: number };
+  byMonth: { date: string; count: number }[];
+  bySource: { name: "WEB" | "PHONE" | "EMAIL" | "OTHER"; value: number }[];
+  byDepartment: { name: string | null; value: number }[];
+  statusOverTime: { date: string; OPEN: number; IN_PROGRESS?: number; CLOSED: number }[];
+};
 export type Department = { id: string; name: string };
 export type Category = { id: string; name: string; departmentId: string };
-export type Stats = { reports?: any; users?: any; departments?: any; categories?: any; updatedAt?: string };
-export type CasePolicy = Partial<{
-  restrictVisibility: boolean;
-  allowMentions: boolean;
-  redactPii: boolean;
-  allowAttachments: boolean;
-  privacyDefault: 'ANONIMO'|'CONFIDENZIALE';
-  allowAnonymous: boolean;
-  autoAssign: 'OFF'|'ROUND_ROBIN'|'LEAST_LOADED';
-  defaultAssigneeUserId: string|null;
-  slaHours: number;
-  notifyOnAssign: boolean;
-  notifyOnStatusChange: boolean;
-  requireMfaForAdmins: boolean;
-}>;
-export type TemplateQuestion = {
-  id?: string;
-  type: 'TEXT'|'TEXTAREA'|'SELECT'|'MULTISELECT'|'RADIO'|'CHECKBOX'|'DATE'|'NUMBER'|'FILE';
-  label: string; required: boolean; options?: string[]; order: number;
-};
-export type Template = { id: string; name: string; questions?: TemplateQuestion[] };
+export type CasePolicy = { restrictVisibility: boolean; allowMentions: boolean; redactPii: boolean; allowAttachments: boolean };
+export type BillingProfile = { companyName: string; taxId: string; address: string; zip: string; city: string; province: string; country: string; billingEmail: string };
+export type Subscription = { plan: "BASIC"; cycle: "MENSILE" | "ANNUALE"; status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "EXPIRED"; startsAt?: string | null; nextBillingAt?: string | null };
+export type PaymentMethod = { type: "CARTA" | "BONIFICO"; masked: string };
+export type TemplateQuestion = { id: string; label: string; order: number };
+export type Template = { id: string; name: string; createdAt?: string; updatedAt?: string; questions: TemplateQuestion[] };
+export type MaybeFeatureOff<T> = T & { __featureDisabled?: true };
 
-export type BillingProfile = {
-  legalName: string; vatNumber?: string;
-  address: { country: string; city: string; zip: string; line1: string; line2?: string };
-  emailForInvoices: string;
-};
-export type Subscription = {
-  plan: 'FREE'|'PRO'|'ENTERPRISE';
-  status: 'ACTIVE'|'PAST_DUE'|'CANCELED';
-  period: { currentStart: string; currentEnd: string };
-  seats: number;
-  limits?: any;
-};
-export type PaymentMethodMasked = {
-  brand?: string; last4?: string; expMonth?: number; expYear?: number; holderName?: string;
-  billingAddress?: BillingProfile['address']; updatedAt?: string;
-};
+/* -------------------- STATS -------------------- */
+export const getSettingsStats = () =>
+  asFeature(api.get(v1("tenant/stats")).then(r => r.data as StatsResponse)) as Promise<MaybeFeatureOff<StatsResponse>>;
 
-function csrfHeaders() {
-  if (!CSRF_PROTECTION) return undefined;
-  const token = getCsrfTokenFromCookie();
-  return token ? { 'X-CSRF-Token': token } : undefined;
-}
+/* -------------------- DEPARTMENTS -------------------- */
+export const listDepartments = () =>
+  asFeature(api.get(v1("tenant/departments")).then(r => r.data as Department[])) as Promise<MaybeFeatureOff<Department[]>>;
+export const createDepartment = (input: { name: string }) =>
+  api.post(v1("tenant/departments"), input).then(r => r.data as Department);
+export const updateDepartment = (id: string, input: { name?: string }) =>
+  api.patch(v1(`tenant/departments/${id}`), input).then(r => r.data as Department);
+export const deleteDepartment = (id: string) =>
+  api.delete(v1(`tenant/departments/${id}`)).then(() => undefined);
 
-// Stats
-export async function getStats(): Promise<Stats> {
-  const { data } = await api.get(v1('tenant/stats'), { withCredentials: true });
-  return (data as any) || {};
-}
+/* -------------------- CATEGORIES -------------------- */
+export const listCategories = (params?: { departmentId?: string }) =>
+  asFeature(api.get(v1("tenant/categories"), { params }).then(r => r.data as Category[])) as Promise<MaybeFeatureOff<Category[]>>;
+export const createCategory = (input: { name: string; departmentId: string }) =>
+  api.post(v1("tenant/categories"), input).then(r => r.data as Category);
+export const updateCategory = (id: string, input: { name?: string; departmentId?: string }) =>
+  api.patch(v1(`tenant/categories/${id}`), input).then(r => r.data as Category);
+export const deleteCategory = (id: string) =>
+  api.delete(v1(`tenant/categories/${id}`)).then(() => undefined);
 
-// Departments CRUD
-export async function listDepartments(): Promise<Department[]> {
-  const { data } = await api.get(v1('tenant/departments'), { withCredentials: true });
-  return Array.isArray(data) ? (data as Department[]) : [];
-}
-export async function createDepartment(dto: { name: string }): Promise<Department> {
-  const { data } = await api.post(v1('tenant/departments'), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as Department;
-}
-export async function updateDepartment(id: string, dto: { name?: string }): Promise<Department> {
-  const { data } = await api.patch(v1(`tenant/departments/${encodeURIComponent(id)}`), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as Department;
-}
-export async function deleteDepartment(id: string): Promise<void> {
-  await api.delete(v1(`tenant/departments/${encodeURIComponent(id)}`), { withCredentials: true, headers: csrfHeaders() });
-}
+/* -------------------- CASE POLICY -------------------- */
+export const getCasePolicy = () =>
+  asFeature(api.get(v1("tenant/case-policy")).then(r => r.data as CasePolicy)) as Promise<MaybeFeatureOff<CasePolicy>>;
+export const updateCasePolicy = (input: Partial<CasePolicy>) =>
+  api.put(v1("tenant/case-policy"), input).then(r => r.data as CasePolicy);
 
-// Categories CRUD
-export async function listCategories(params?: { departmentId?: string }): Promise<Category[]> {
-  const { data } = await api.get(v1('tenant/categories'), { params: params?.departmentId ? { departmentId: params.departmentId } : {}, withCredentials: true });
-  return Array.isArray(data) ? (data as Category[]) : [];
-}
-export async function createCategory(dto: { name: string; departmentId: string }): Promise<Category> {
-  const { data } = await api.post(v1('tenant/categories'), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as Category;
-}
-export async function updateCategory(id: string, dto: { name?: string; departmentId?: string }): Promise<Category> {
-  const { data } = await api.patch(v1(`tenant/categories/${encodeURIComponent(id)}`), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as Category;
-}
-export async function deleteCategory(id: string): Promise<void> {
-  await api.delete(v1(`tenant/categories/${encodeURIComponent(id)}`), { withCredentials: true, headers: csrfHeaders() });
-}
+/* -------------------- BILLING -------------------- */
+export const getBillingProfile = () =>
+  asFeature(api.get(v1("tenant/billing/profile")).then(r => r.data as BillingProfile)) as Promise<MaybeFeatureOff<BillingProfile>>;
+export const updateBillingProfile = (input: Partial<BillingProfile>) =>
+  api.put(v1("tenant/billing/profile"), input).then(r => r.data as BillingProfile);
+export const getSubscription = () =>
+  asFeature(api.get(v1("tenant/subscription")).then(r => r.data as Subscription)) as Promise<MaybeFeatureOff<Subscription>>;
+export const updateSubscription = (input: Partial<Pick<Subscription, "cycle" | "status">>) =>
+  api.put(v1("tenant/subscription"), input).then(r => r.data as Subscription);
+export const getPaymentMethod = () =>
+  asFeature(api.get(v1("tenant/payment-method")).then(r => r.data as PaymentMethod)) as Promise<MaybeFeatureOff<PaymentMethod>>;
+export const updatePaymentMethod = (input: PaymentMethod) =>
+  api.put(v1("tenant/payment-method"), input).then(r => r.data as PaymentMethod);
 
-// Case Policy
-export async function getCasePolicy(): Promise<CasePolicy> {
-  const { data } = await api.get(v1('tenant/case-policy'), { withCredentials: true });
-  return (data as any) || {};
-}
-export async function updateCasePolicy(dto: Partial<CasePolicy>): Promise<CasePolicy> {
-  const { data } = await api.put(v1('tenant/case-policy'), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as CasePolicy;
-}
+/* -------------------- TEMPLATES -------------------- */
+export const listTemplates = () =>
+  asFeature(api.get(v1("tenant/templates")).then(r => r.data as Template[])) as Promise<MaybeFeatureOff<Template[]>>;
+export const createTemplate = (input: { name: string; questions?: Array<Pick<TemplateQuestion, "label" | "order">> }) =>
+  api.post(v1("tenant/templates"), input).then(r => r.data as Template);
+export const updateTemplate = (id: string, input: Partial<{ name: string; questions: Array<Pick<TemplateQuestion, "label" | "order">> }>) =>
+  api.patch(v1(`tenant/templates/${id}`), input).then(r => r.data as Template);
+export const deleteTemplate = (id: string) =>
+  api.delete(v1(`tenant/templates/${id}`)).then(r => r.data as { message: string });
 
-// Templates CRUD (+ questions inline)
-export async function listTemplates(): Promise<Template[]> {
-  const { data } = await api.get(v1('tenant/templates'), { withCredentials: true });
-  return Array.isArray(data) ? (data as Template[]) : [];
-}
-export async function createTemplate(dto: { name: string; questions?: TemplateQuestion[] }): Promise<Template> {
-  const { data } = await api.post(v1('tenant/templates'), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as Template;
-}
-export async function updateTemplate(id: string, dto: Partial<Template>): Promise<Template> {
-  const { data } = await api.patch(v1(`tenant/templates/${encodeURIComponent(id)}`), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as Template;
-}
-export async function deleteTemplate(id: string): Promise<void> {
-  await api.delete(v1(`tenant/templates/${encodeURIComponent(id)}`), { withCredentials: true, headers: csrfHeaders() });
-}
-
-// Billing
-export async function getBillingProfile(): Promise<BillingProfile> {
-  const { data } = await api.get(v1('tenant/billing/profile'), { withCredentials: true });
-  return (data as BillingProfile);
-}
-export async function updateBillingProfile(dto: BillingProfile): Promise<BillingProfile> {
-  const { data } = await api.put(v1('tenant/billing/profile'), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as BillingProfile;
-}
-export async function getSubscription(): Promise<Subscription> {
-  const { data } = await api.get(v1('tenant/billing/subscription'), { withCredentials: true });
-  return (data as Subscription);
-}
-export async function updateSubscription(dto: Partial<Subscription>): Promise<Subscription> {
-  const { data } = await api.put(v1('tenant/billing/subscription'), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as Subscription;
-}
-export async function getPaymentMethod(): Promise<PaymentMethodMasked> {
-  const { data } = await api.get(v1('tenant/billing/payment-method'), { withCredentials: true });
-  return (data as PaymentMethodMasked);
-}
-export async function updatePaymentMethod(dto: Partial<PaymentMethodMasked>): Promise<PaymentMethodMasked> {
-  const { data } = await api.put(v1('tenant/billing/payment-method'), dto, { withCredentials: true, headers: csrfHeaders() });
-  return data as PaymentMethodMasked;
-}
-
-// (Optional) Storage placeholders behind FEATURE_STORAGE can be added later
-
+// Fine
