@@ -1,4 +1,4 @@
-// src/pages/ReportDetailV2.tsx
+﻿// src/pages/ReportDetailV2.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -71,7 +71,7 @@ export default function ReportDetailV2() {
         const data = await getReportById(id);
         const wr = (data as any)?.whistleReport || data;
         setReport(wr || null);
-        // messages asc possono arrivare già nel dettaglio; se non presenti, fetch separato
+        // messages asc possono arrivare giÃ  nel dettaglio; se non presenti, fetch separato
         const msgs = Array.isArray((data as any)?.messages) ? (data as any).messages : await getMessages(id, 'ALL');
         setMessages(msgs as Message[]);
         // labels
@@ -156,7 +156,7 @@ export default function ReportDetailV2() {
       setReport((prev: any) => ({ ...(prev || {}), assigneeId: 'me' }));
     } catch (e: any) {
       const s = e?.response?.status;
-      if (s === 409) setToast({ show: true, message: 'Segnalazione già assegnata a un altro utente.', variant: 'danger' });
+      if (s === 409) setToast({ show: true, message: 'Segnalazione giÃ  assegnata a un altro utente.', variant: 'danger' });
       else if (s === 403) setToast({ show: true, message: 'Permessi insufficienti', variant: 'danger' });
       else setToast({ show: true, message: 'Errore di connessione. Riprova.', variant: 'danger' });
     }
@@ -165,7 +165,7 @@ export default function ReportDetailV2() {
   async function onAssignUser() {
     if (!assignUserId) return;
     try { await assign(id, assignUserId); setToast({ show: true, message: 'Assegnazione aggiornata', variant: 'success' }); }
-    catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: 'Permessi insufficienti', variant: 'danger' }); else if (s === 409) setToast({ show: true, message: 'Gi� assegnato a un altro utente', variant: 'danger' }); else setToast({ show: true, message: 'Errore di connessione. Riprova.', variant: 'danger' }); }
+    catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: 'Permessi insufficienti', variant: 'danger' }); else if (s === 409) setToast({ show: true, message: 'Già assegnato a un altro utente', variant: 'danger' }); else setToast({ show: true, message: 'Errore di connessione. Riprova.', variant: 'danger' }); }
   }
   async function onUnassign() {
     try { await unassign(id); setToast({ show: true, message: 'Assegnazione rimossa', variant: 'success' }); }
@@ -195,10 +195,12 @@ export default function ReportDetailV2() {
     try {
       setUploading(true);
       for (const f of arr) {
-        const p = await presignAttachment({ filename: f.name, mimeType: f.type || 'application/octet-stream', size: f.size });
-        await uploadPresigned(p.uploadUrl, f, p.fields);
-        await finalizeAttachment({ storageKey: p.storageKey, reportId: id });
+        const p = await presignAttachment({ fileName: f.name, mimeType: f.type || 'application/octet-stream', sizeBytes: f.size });
+        const etag = await uploadPresigned(p.uploadUrl, f, p.headers);
+        await finalizeAttachment({ storageKey: p.storageKey, sizeBytes: f.size, fileName: f.name, mimeType: f.type || 'application/octet-stream', etag: etag || undefined, proof: p.proof });
       }
+      // Refresh lista allegati dopo upload
+      try { const atts = await getAttachments(id); setAttachments(atts || []); } catch { /* ignore */ }
       setToast({ show: true, message: 'Allegati caricati', variant: 'success' });
     } catch (e: any) {
       const s = e?.response?.status;
@@ -215,7 +217,7 @@ export default function ReportDetailV2() {
     return (
       <div className="container py-4 d-flex align-items-center" style={{ gap: 8 }}>
         <Spinner animation="border" size="sm" />
-        <span>Caricamento…</span>
+        <span>Caricamentoâ€¦</span>
       </div>
     );
   }
@@ -246,7 +248,7 @@ export default function ReportDetailV2() {
             <Col md={6}>
               <div className="mb-2 text-muted">
                 <small>
-                  Dipartimento: {deptName} — Categoria: {catName}
+                  Dipartimento: {deptName} â€” Categoria: {catName}
                 </small>
               </div>
               <div className="mb-2"><strong>Canale:</strong> {String(report.channel || report.source || 'OTHER')}</div>
@@ -399,7 +401,7 @@ export default function ReportDetailV2() {
                       <ListGroup.Item key={a.id} className="d-flex justify-content-between align-items-center">
                         <div>
                           <div className="fw-semibold">{a.fileName}</div>
-                          <small className="text-muted">{a.mimeType} · {(a.sizeBytes/1024).toFixed(0)} KB</small>
+                          <small className="text-muted">{a.mimeType} Â· {(a.sizeBytes/1024).toFixed(0)} KB</small>
                         </div>
                         <div>
                           <a className="btn btn-sm btn-outline-secondary" href={buildAttachmentDownloadUrl(id, a.id)} target="_blank" rel="noreferrer">Scarica</a>

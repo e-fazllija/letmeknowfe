@@ -18,7 +18,18 @@ const adaptCategory = (raw: any): Cat => ({
 
 // ---------- Public lookups (NO auth, header x-tenant-id obbligatorio) ----------
 export async function fetchDepartmentsPublic(): Promise<Dept[]> {
-  const tenantId = getSavedTenantId();
+  const tenantId = (() => {
+    const saved = getSavedTenantId();
+    if (saved && String(saved).trim()) return String(saved).trim();
+    // Dev fallback: consenti uso di VITE_DEV_TENANT_ID o (legacy) VITE_TENANT_ID
+    if (import.meta.env.DEV) {
+      const dev = (import.meta as any).env?.VITE_DEV_TENANT_ID as string | undefined;
+      const legacy = (import.meta as any).env?.VITE_TENANT_ID as string | undefined;
+      const val = String(dev || legacy || "").trim();
+      if (val) return val;
+    }
+    return undefined;
+  })();
   const resp = await fetch(v1("public/departments"), {
     method: "GET",
     credentials: "include",
@@ -32,7 +43,17 @@ export async function fetchDepartmentsPublic(): Promise<Dept[]> {
 }
 
 export async function fetchCategoriesPublic(departmentId?: string): Promise<Cat[]> {
-  const tenantId = getSavedTenantId();
+  const tenantId = (() => {
+    const saved = getSavedTenantId();
+    if (saved && String(saved).trim()) return String(saved).trim();
+    if (import.meta.env.DEV) {
+      const dev = (import.meta as any).env?.VITE_DEV_TENANT_ID as string | undefined;
+      const legacy = (import.meta as any).env?.VITE_TENANT_ID as string | undefined;
+      const val = String(dev || legacy || "").trim();
+      if (val) return val;
+    }
+    return undefined;
+  })();
   const url = new URL(v1("public/categories"), window.location.origin);
   if (departmentId) url.searchParams.set("departmentId", departmentId);
   const resp = await fetch(url.toString(), {

@@ -62,9 +62,7 @@ const BaseSchema = z
       if (!data.name || data.name.trim().length < 3) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Nome minimo 3 caratteri" });
       }
-      if (!data.email) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Email obbligatoria" });
-      }
+      // Email non obbligatoria in modalità confidenziale (richiesta solo nominativo)
     }
   });
 
@@ -160,8 +158,18 @@ export default function NewReport() {
         const files = filesList ? Array.from(filesList).slice(0, 3) : [];
         for (const file of files) {
           const p = await presignAttachment({ fileName: file.name, mimeType: file.type || "application/octet-stream", sizeBytes: file.size });
-          await uploadToPresigned(p.uploadUrl, file, p.headers);
-          await finalizeAttachment(p.storageKey, p.proof);
+          const extra: Record<string,string> | undefined = (p as any)?.headers && Object.keys((p as any).headers || {}).length
+            ? (p as any).headers
+            : ((p as any)?.fields && Object.keys((p as any).fields || {}).length ? (p as any).fields : undefined);
+          const etag = await uploadToPresigned(p.uploadUrl, file, extra);
+          await finalizeAttachment({
+            storageKey: p.storageKey,
+            sizeBytes: file.size,
+            fileName: file.name,
+            mimeType: file.type || "application/octet-stream",
+            etag: etag || undefined,
+            proof: p.proof,
+          });
           attachments.push({ fileName: file.name, mimeType: file.type || "application/octet-stream", sizeBytes: file.size, storageKey: p.storageKey, ...(p.proof ? { proof: p.proof } : {}) });
         }
       } catch (e) {

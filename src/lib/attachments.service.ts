@@ -1,32 +1,51 @@
 // src/lib/attachments.service.ts
-// Servizio PUBLIC per presign/finalize allegati del report detail V2
-// Nota: l'header x-tenant-id è gestito dall'interceptor api.headers.v2.ts
+// Servizio TENANT (backoffice) per presign/finalize allegati del report detail V2
 
-import api, { v1 } from "@/lib/api";
+import { v1 } from "@/lib/api";
 
-export type PresignReq = { filename: string; mimeType: string; size: number };
-export type PresignRes = { uploadUrl: string; storageKey: string; fields?: Record<string,string> };
+export type PresignReq = { fileName: string; mimeType: string; sizeBytes: number };
+export type PresignRes = { uploadUrl: string; storageKey: string; headers?: Record<string,string>; proof?: string };
 
 export async function presignAttachment(req: PresignReq): Promise<PresignRes> {
-  const { data } = await api.post(v1("public/reports/attachments/presign"), req, { withCredentials: true });
-  return data as PresignRes;
-}
-
-export async function finalizeAttachment(req: { storageKey: string; reportId: string }): Promise<void> {
-  await api.post(v1("public/reports/attachments/finalize"), req, { withCredentials: true });
-}
-
-// Upload client: gestisce sia form-data (fields presenti) che PUT binario
-export async function uploadPresigned(uploadUrl: string, file: File, fields?: Record<string,string>): Promise<void> {
-  if (fields && Object.keys(fields).length > 0) {
-    const form = new FormData();
-    Object.entries(fields).forEach(([k, v]) => form.append(k, v));
-    form.append('file', file);
-    const resp = await fetch(uploadUrl, { method: 'POST', body: form });
-    if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
-    return;
+  const resp = await fetch(v1("tenant/reports/attachments/presign"), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ files: [{ fileName: req.fileName, mimeType: req.mimeType, sizeBytes: req.sizeBytes }] }),
+  });
+  if (!resp.ok) throw new Error(`presign failed: ${resp.status}`);
+  const raw: any = await resp.json();
+  const first = Array.isArray(raw?.items) ? raw.items[0] : undefined;
+  if (first && first.uploadUrl && first.storageKey) {
+    return { uploadUrl: first.uploadUrl, storageKey: first.storageKey, headers: first.headers, proof: first.proof };
   }
-  const resp = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+  throw new Error('Invalid presign response: missing items[0].uploadUrl or items[0].storageKey');
+}
+
+export async function finalizeAttachment(input: { storageKey: string; sizeBytes: number; fileName: string; mimeType: string; etag?: string | null; proof?: string }): Promise<void> {
+  const item: Record<string, any> = {
+    storageKey: input.storageKey,
+    sizeBytes: input.sizeBytes,
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+    ...(input.etag ? { etag: input.etag } : {}),
+    ...(input.proof ? { hmac: input.proof } : {}),
+  };
+  const resp = await fetch(v1("tenant/reports/attachments/finalize"), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: [item] }),
+  });
+  if (!resp.ok) throw new Error(`finalize failed: ${resp.status}`);
+}
+
+// Upload client: PUT binario (headers firmati dal presign); ritorna ETag se presente
+export async function uploadPresigned(uploadUrl: string, file: File, headersIn?: Record<string,string>): Promise<string | null> {
+  const headers = new Headers(headersIn || {});
+  if (!headers.has('Content-Type')) headers.set('Content-Type', file.type || 'application/octet-stream');
+  const resp = await fetch(uploadUrl, { method: 'PUT', headers, body: file });
   if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+  try { return resp.headers.get('ETag') || resp.headers.get('etag'); } catch { return null; }
 }
 

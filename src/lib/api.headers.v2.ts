@@ -3,17 +3,10 @@
 // e CSRF condizionale (X-CSRF-Token) SOLO sulle mutate tenant.
 // Non tocca Authorization (cookie-first) e non modifica il refresh 401.
 
-import api from "@/lib/api";
+import api, { getSavedTenantId } from "@/lib/api";
 
 // TenantId risolto dallo storage/ambiente (già usato altrove)
-function getTenantId(): string | undefined {
-  try {
-    const explicit = (typeof localStorage !== 'undefined') ? localStorage.getItem("x-tenant-id") : "";
-    const a = (typeof localStorage !== 'undefined') ? localStorage.getItem("lmw_client_id") : "";
-    const b = (typeof localStorage !== 'undefined') ? localStorage.getItem("lmw_tenant_id") : "";
-    return (explicit || a || b || undefined) || undefined;
-  } catch { return undefined; }
-}
+function getTenantId(): string | undefined { return getSavedTenantId(); }
 
 function getCookie(name: string): string | null {
   try {
