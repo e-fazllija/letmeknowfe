@@ -253,6 +253,9 @@ export default function ReportDetailV2() {
               </div>
               <div className="mb-2"><strong>Canale:</strong> {String(report.channel || report.source || 'OTHER')}</div>
               <div className="mb-2"><strong>Privacy:</strong> {String(report.privacy || '-')}</div>
+              {String(report.privacy || '') === 'CONFIDENZIALE' && (report as any)?.reporterName ? (
+                <div className="mb-2"><strong>Segnalante:</strong> {String((report as any).reporterName)}</div>
+              ) : null}
               <div className="mb-2"><strong>PII sospetti:</strong> {String(report.containsPIISuspected || false)}</div>
             </Col>
             <Col md={6}>

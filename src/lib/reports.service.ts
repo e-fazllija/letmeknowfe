@@ -69,6 +69,8 @@ export type CreateReportInput = {
   categoryId: string;
   description: string;
   privacy?: "ANONIMO" | "CONFIDENZIALE";
+  // opzionale: solo per privacy "CONFIDENZIALE"
+  reporterName?: string;
   attachments?: AttachmentMeta[];
 };
 
@@ -84,6 +86,8 @@ export async function createReport(input: CreateReportInput) {
     categoryId: input.categoryId,
     description: input.description,
     privacy: input.privacy ?? "ANONIMO",
+    // Invia il nominativo solo se privacy CONFIDENZIALE e valorizzato
+    ...(input.privacy === "CONFIDENZIALE" && input.reporterName ? { reporterName: input.reporterName } : {}),
     attachments: input.attachments ?? [],
   };
 

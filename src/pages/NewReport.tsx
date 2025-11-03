@@ -25,8 +25,8 @@ const SOURCE_LABELS: Record<(typeof REPORT_SOURCES)[number], string> = {
 };
 
 // Schema form (legacy UI -> payload BE nel submit)
-// - Normalizza stringhe vuote a undefined per name/email
-// - Rende name/email obbligatori solo se privacyMode === "CONFIDENZIALE"
+// - Normalizza stringhe vuote a undefined per name
+// - Rende name obbligatorio solo se privacyMode === "CONFIDENZIALE" (1–160)
 const BaseSchema = z
   .object({
     date: z.string().min(1, "Data obbligatoria"),
@@ -42,12 +42,6 @@ const BaseSchema = z
         z.string().trim()
       )
       .optional(),
-    email: z
-      .preprocess(
-        (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-        z.string().trim().email("Email non valida")
-      )
-      .optional(),
     title: z.string().trim().min(3, "Titolo minimo 3 caratteri"),
     // Gli ID arrivano come string (coercion per sicurezza)
     department: z.coerce.string().min(1, "Seleziona un reparto"),
@@ -59,8 +53,8 @@ const BaseSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.privacyMode === "CONFIDENZIALE") {
-      if (!data.name || data.name.trim().length < 3) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Nome minimo 3 caratteri" });
+      if (!data.name || (data.name.trim().length < 1 || data.name.trim().length > 160)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Inserisci un nominativo (1–160 caratteri)" });
       }
       // Email non obbligatoria in modalità confidenziale (richiesta solo nominativo)
     }
@@ -110,7 +104,6 @@ export default function NewReport() {
       source: "WEB",
       privacyMode: "ANONIMO",
       name: "",
-      email: "",
       title: "",
       department: "",
       category: "",
@@ -178,7 +171,11 @@ export default function NewReport() {
       }
 
       if (REPORTS_API_ENABLED) {
-        const res = await createReport({ ...(body as any), attachments });
+        const res = await createReport({
+          ...(body as any),
+          ...(prv === "CONFIDENZIALE" && String(data.name ?? "").trim() ? { reporterName: String(data.name ?? "").trim() } : {}),
+          attachments,
+        });
         setToast({ show: true, message: "Segnalazione creata", variant: "success" });
         setLastCreatedId(res?.reportId);
         if (data.revealSecret && res?.publicCode && res?.secret) {
@@ -194,7 +191,6 @@ export default function NewReport() {
         source: data.source,
         privacyMode: data.privacyMode,
         name: "",
-        email: "",
         title: "",
         department: "",
         category: "",
@@ -261,18 +257,11 @@ export default function NewReport() {
             {privacyMode === "CONFIDENZIALE" && (
               <div className="p-3 border rounded mb-3 bg-light">
                 <Row>
-                  <Col md={6}>
+                  <Col md={12}>
                     <Form.Group className="mb-3" controlId="name">
                       <Form.Label>Nome e cognome</Form.Label>
-                      <Form.Control type="text" placeholder="Es. Mario Rossi" isInvalid={!!errors.name} {...register("name")} />
+                      <Form.Control type="text" placeholder="Es. Mario Rossi" maxLength={160} isInvalid={!!errors.name} {...register("name")} />
                       <Form.Control.Feedback type="invalid">{errors.name?.message as string}</Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3" controlId="email">
-                      <Form.Label>Email</Form.Label>
-                      <Form.Control type="email" placeholder="nome@azienda.it" isInvalid={!!errors.email} {...register("email")} />
-                      <Form.Control.Feedback type="invalid">{errors.email?.message as string}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                 </Row>
