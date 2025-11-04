@@ -25,9 +25,25 @@ import {
   type Message,
 } from "@/lib/reports.v2.service";
 import { finalizeAttachment, presignAttachment, uploadPresigned } from "@/lib/attachments.service";
+import { useUserResolver } from "@/lib/useUserResolver";
 import UserSelect from "@/components/UserSelect";
 
+function renderPlainWithBreaks(s?: string | null) {
+  if (!s) return <span className="text-muted">—</span>;
+  const safe = String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return <span dangerouslySetInnerHTML={{ __html: safe.replace(/\n/g, "<br/>") }} />;
+}
+
 const STATUS_VALUES: ReportStatus[] = ["OPEN","IN_PROGRESS","SUSPENDED","NEED_INFO","CLOSED"];
+
+function extractUserIdFromText(text?: string): string | undefined {
+  if (!text) return;
+  const m = String(text || "").match(/\bcmh[0-9a-z]{10,}\b/i);
+  return m ? m[0] : undefined;
+}
 
 const StatusSchema = z.object({
   status: z.enum(["OPEN","IN_PROGRESS","SUSPENDED","NEED_INFO","CLOSED"]),
@@ -104,6 +120,51 @@ export default function ReportDetailV2() {
       }
     })();
   }, [id]);
+
+  // --- User resolver (assignee + SYSTEM assign messages, robust) ---
+  const candidateAssigneeIdFromDetail: string | undefined =
+    (report as any)?.assigneeId ?? (report as any)?.assignedToUserId ?? (report as any)?.internalUserId ?? undefined;
+
+  const assignMessages = useMemo(() => {
+    const list = Array.isArray(messages) ? messages.slice() : [];
+    const filtered = list.filter((m: any) =>
+      m?.type === "SYSTEM" && (
+        m?.systemKind?.toUpperCase?.().includes("ASSIGN") ||
+        /assegnat[oa]\s+a\s+utente/i.test(m?.body || (m as any)?.text || "") ||
+        /assigned\s+to\s+user/i.test(m?.body || (m as any)?.text || "")
+      )
+    );
+    filtered.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return filtered;
+  }, [JSON.stringify(messages)]);
+
+  const lastAssign: any | undefined = assignMessages[0];
+  const candidateAssigneeIdFromMessage: string | undefined =
+    lastAssign?.payload?.assigneeId ||
+    lastAssign?.payload?.targetUserId ||
+    extractUserIdFromText(lastAssign?.body || (lastAssign as any)?.text);
+
+  const effectiveAssigneeId: string | undefined =
+    (candidateAssigneeIdFromDetail as string | undefined) ||
+    (candidateAssigneeIdFromMessage as string | undefined) ||
+    undefined;
+
+  const idsToResolve = useMemo(() => {
+    const ids: Array<string | undefined> = [
+      effectiveAssigneeId,
+      ...assignMessages.map((m: any) =>
+        m?.payload?.assigneeId ||
+        m?.payload?.targetUserId ||
+        extractUserIdFromText(m?.body || (m as any)?.text)
+      ),
+    ];
+    return (ids.filter(Boolean) as string[]);
+  }, [effectiveAssigneeId, JSON.stringify(assignMessages)]);
+
+  const userMap = useUserResolver(idsToResolve);
+
+  // Descrizione (read-only)
+  const descriptionText: string = (report as any)?.summary ?? "";
 
   // Status form
   const { register: regStatus, handleSubmit: submitStatus, formState: { isSubmitting: statusBusy } , reset: resetStatus } = useForm<StatusForm>({
@@ -299,7 +360,14 @@ export default function ReportDetailV2() {
         <Card.Body>
           <div className="d-flex align-items-center justify-content-between">
             <div>
-              <div><strong>Assegnato a:</strong> {report.assigneeName || report.assigneeId || '-'}</div>
+              {(() => {
+                const assId = effectiveAssigneeId || String((report as any)?.assigneeId || (report as any)?.assignedToUserId || "");
+                const assigneeLabel =
+                  (assId && (userMap[assId]?.email || userMap[assId]?.displayName)) ||
+                  assId ||
+                  "-";
+                return <div><strong>Assegnato a:</strong> {assigneeLabel}</div>;
+              })()}
             </div>
             {isAdmin && (
               <div className="d-flex align-items-end" style={{ gap: 8 }}>
@@ -315,6 +383,16 @@ export default function ReportDetailV2() {
               </div>
             )}
           </div>
+        </Card.Body>
+      </Card>
+
+      {/* === Descrizione (READ-ONLY) === */}
+      <Card className="shadow-sm mb-3">
+        <Card.Header>
+          <strong>Descrizione</strong>
+        </Card.Header>
+        <Card.Body>
+          {renderPlainWithBreaks(descriptionText)}
         </Card.Body>
       </Card>
 
@@ -335,7 +413,21 @@ export default function ReportDetailV2() {
                       </div>
                       <small>{new Date(m.createdAt).toLocaleString()}</small>
                     </div>
-                    <div className="mt-1" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>
+                    {(() => {
+                      const isSystem = String((m as any)?.type || "").toUpperCase() === "SYSTEM";
+                      const kind = String((m as any)?.systemKind || "").toUpperCase();
+                      const bodyText = (m as any)?.body || (m as any)?.text || "";
+                      const isAssign = isSystem && (kind.includes("ASSIGN") || /assegnat[oa]\s+a\s+utente/i.test(bodyText) || /assigned\s+to\s+user/i.test(bodyText));
+                      if (isAssign) {
+                        const targetId = (m as any)?.payload?.assigneeId || (m as any)?.payload?.targetUserId || extractUserIdFromText(bodyText);
+                        const targetLabel =
+                          (targetId && (userMap[String(targetId)]?.email || userMap[String(targetId)]?.displayName)) ||
+                          String(targetId || "utente");
+                        const text = `Caso assegnato a ${targetLabel}.`;
+                        return <div className="mt-1" style={{ whiteSpace: 'pre-wrap' }}>{text}</div>;
+                      }
+                      return <div className="mt-1" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>;
+                    })()}
                     {(m as any).visibility === 'INTERNAL' && (
                       <div className="mt-2 d-flex" style={{ gap: 8 }}>
                         <Button size="sm" variant="outline-secondary" onClick={async () => {
