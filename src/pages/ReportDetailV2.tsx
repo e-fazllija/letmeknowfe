@@ -28,6 +28,37 @@ import { stripSystemPrefix, buildUserIndex, replaceUserIds, systemSideLabel } fr
 import { listReportAttachments, downloadAttachment as dlAttachment } from "@/lib/reportAttachments.service";
 import UserSelect from "@/components/UserSelect";
 
+// Helpers risoluzione nomi reparto/categoria senza nuove chiamate
+function getDepartmentName(report: any, departments?: any[], deptOptions?: any[]) {
+  const direct = report?.department?.name || report?.departmentName;
+  if (direct) return String(direct);
+  const src = (departments || deptOptions || []) as any[];
+  const byId = src.find((d) => String(d?.id ?? d?.value) === String(report?.departmentId));
+  const name = (byId as any)?.name ?? (byId as any)?.label;
+  return name ? String(name) : "—";
+}
+
+function getCategoryName(report: any, departments?: any[], categoryOptions?: any[]) {
+  const direct = report?.category?.name || report?.categoryName;
+  if (direct) return String(direct);
+  const catId = (report as any)?.categoryId;
+  if (!catId) return "—";
+  for (const c of ((categoryOptions || []) as any[])) {
+    const id = (c as any)?.id ?? (c as any)?.value;
+    const name = (c as any)?.name ?? (c as any)?.label;
+    if (id != null && String(id) === String(catId)) return String(name ?? "—");
+  }
+  for (const d of ((departments || []) as any[])) {
+    const cats = (d as any)?.categories || (d as any)?.items || [];
+    for (const c of cats) {
+      const id = (c as any)?.id ?? (c as any)?.value;
+      const name = (c as any)?.name ?? (c as any)?.label;
+      if (id != null && String(id) === String(catId)) return String(name ?? "—");
+    }
+  }
+  return "—";
+}
+
 function renderPlainWithBreaks(s?: string | null) {
   if (!s) return <span className="text-muted">�</span>;
   const safe = String(s)
@@ -74,6 +105,8 @@ export default function ReportDetailV2() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [deptName, setDeptName] = useState<string>("-");
   const [catName, setCatName] = useState<string>("-");
+  const [deptList, setDeptList] = useState<any[]>([]);
+  const [catList, setCatList] = useState<any[]>([]);
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: "primary" | "success" | "danger" }>(
     { show: false, message: "", variant: "primary" }
   );
@@ -99,9 +132,11 @@ export default function ReportDetailV2() {
         // labels
         try {
           const depts = await fetchDeptApi();
-          const dmap = new Map(depts.map(d => [d.id, d.name]));
+          setDeptList(Array.isArray(depts) ? depts : []);
+          const dmap = new Map((depts || []).map((d: any) => [d.id, d.name]));
           setDeptName(dmap.get(String(wr?.departmentId || '')) || '-');
           const cats = await fetchCatsApi(String(wr?.departmentId || ''));
+          setCatList(Array.isArray(cats) ? cats : []);
           const cmap = new Map((cats || []).map((c: any) => [c.id, c.name]));
           setCatName(cmap.get(String(wr?.categoryId || '')) || '-');
         } catch { /* ignore */ }
@@ -328,10 +363,11 @@ export default function ReportDetailV2() {
               </div>
               <div className="mb-2"><strong>Canale:</strong> {String(report.channel || report.source || 'OTHER')}</div>
               <div className="mb-2"><strong>Privacy:</strong> {String(report.privacy || '-')}</div>
+              <div className="mb-2"><strong>Reparto:</strong> {getDepartmentName(report, deptList)}</div>
+              <div className="mb-2"><strong>Categoria:</strong> {getCategoryName(report, deptList, catList)}</div>
               {String(report.privacy || '') === 'CONFIDENZIALE' && (report as any)?.reporterName ? (
                 <div className="mb-2"><strong>Segnalante:</strong> {String((report as any).reporterName)}</div>
               ) : null}
-              <div className="mb-2"><strong>PII sospetti:</strong> {String(report.containsPIISuspected || false)}</div>
             </Col>
             <Col md={6}>
               <Form onSubmit={submitStatus(onStatusSubmit)}>

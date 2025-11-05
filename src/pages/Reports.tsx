@@ -65,7 +65,28 @@ export default function Reports() {
   });
 
   const deptName = useMemo(() => new Map(departments.map(d => [d.id, d.name])), [departments]);
-  const catName = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
+
+  // Sorgente opzioni per indice categorie (riuso dell'elenco del filtro)
+  const _catOpts: any[] = (categories || []) as any[];
+  // Indice id -> name, normalizzato
+  const categoryIndex = useMemo(() => {
+    const map = new Map<string, string>();
+    _catOpts.forEach((c: any) => {
+      const id = c?.id ?? c?.value;
+      const name = c?.name ?? c?.label;
+      if (id && name) map.set(String(id), String(name));
+    });
+    return map;
+  }, [_catOpts]);
+
+  function getCategoryLabel(row: any, idx: Map<string, string>) {
+    return (
+      row?.category?.name ||
+      row?.categoryName ||
+      (row?.categoryId ? idx.get(String(row.categoryId)) : undefined) ||
+      "—"
+    );
+  }
   const { ids: archivedIds, add: archive, remove: unarchive, has: isArchived } = useArchive();
   const isArchiveView = params.get("view") === "archive";
 
@@ -200,7 +221,7 @@ export default function Reports() {
             <tr key={r.id}>
               <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '-'}</td>
               <td>{deptName.get(r.departmentId || '') || '-'}</td>
-              <td>{catName.get(r.categoryId || '') || '-'}</td>
+              <td className="align-middle">{getCategoryLabel(r, categoryIndex)}</td>
               <td style={{ fontWeight: 600 }}>{r.title || '-'}</td>
               <td>
                 <span className={`badge ${
