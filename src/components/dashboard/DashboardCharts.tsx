@@ -23,7 +23,6 @@ import { getDashboardData, type DashboardData } from "../../lib/stats.service";
 import { parse, format } from "date-fns";
 import { it as itLocale } from "date-fns/locale";
 
-// Palette coerente con Bootstrap (primario, success, danger, info, warning…)
 const PALETTE = ["#0d6efd", "#198754", "#dc3545", "#0dcaf0", "#ffc107", "#6c757d"];
 
 // util: "2025-01" -> "gen 2025"
@@ -37,8 +36,8 @@ export default function DashboardCharts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // filtro mese (default = tutti)
-  const [month, setMonth] = useState<string>("__all__");
+  // Filtro range condiviso tra i grafici (12m, 6m, 3m, curr)
+  const [range, setRange] = useState<string>("12m");
 
   useEffect(() => {
     (async () => {
@@ -53,26 +52,45 @@ export default function DashboardCharts() {
     })();
   }, []);
 
-  // opzioni select mesi
-  const monthOptions = useMemo(() => {
-    if (!data) return [];
-    // byMonth è già in ordine crescente nel mock
-    return data.byMonth.map((m) => m.date);
-  }, [data]);
-
-  // dataset filtrati per i grafici cartesiani
+  // Serie per andamento (linea)
   const lineData = useMemo(() => {
     if (!data) return [];
-    if (month === "__all__") return data.byMonth;
-    // solo il mese selezionato
-    return data.byMonth.filter((x) => x.date === month);
-  }, [data, month]);
+    const full = data.byMonth;
+    const curr = format(new Date(), "yyyy-MM");
+    switch (range) {
+      case "6m":
+        return full.slice(-6);
+      case "3m":
+        return full.slice(-3);
+      case "curr": {
+        const only = full.filter((x) => x.date === curr);
+        return only.length ? only : full.slice(-1);
+      }
+      case "12m":
+      default:
+        return full;
+    }
+  }, [data, range]);
 
+  // Serie per stati nel tempo (barre)
   const statusData = useMemo(() => {
     if (!data) return [];
-    if (month === "__all__") return data.statusOverTime;
-    return data.statusOverTime.filter((x) => x.date === month);
-  }, [data, month]);
+    const full = data.statusOverTime;
+    const curr = format(new Date(), "yyyy-MM");
+    switch (range) {
+      case "6m":
+        return full.slice(-6);
+      case "3m":
+        return full.slice(-3);
+      case "curr": {
+        const only = full.filter((x) => x.date === curr);
+        return only.length ? only : full.slice(-1);
+      }
+      case "12m":
+      default:
+        return full;
+    }
+  }, [data, range]);
 
   if (loading) return <div className="text-secondary">Caricamento statistiche…</div>;
   if (error) return <Alert variant="warning">{error}</Alert>;
@@ -116,39 +134,24 @@ export default function DashboardCharts() {
         </Col>
       </Row>
 
-      {/* Andamento + filtro mesi */}
+      {/* Andamento + filtro range */}
       <Card>
         <Card.Header className="bg-white d-flex flex-wrap align-items-center justify-content-between">
           <div className="fw-semibold">Andamento mensile</div>
-          <Form.Select
-            size="sm"
-            style={{ maxWidth: 220 }}
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-          >
-            <option value="__all__">Ultimi 12 mesi</option>
-            {monthOptions.map((m) => (
-              <option key={m} value={m}>
-                {fmtMonth(m)}
-              </option>
-            ))}
+          <Form.Select size="sm" style={{ maxWidth: 220 }} value={range} onChange={(e) => setRange(e.target.value)}>
+            <option value="12m">Ultimi 12 mesi</option>
+            <option value="6m">Ultimi 6 mesi</option>
+            <option value="3m">Ultimi 3 mesi</option>
+            <option value="curr">Mese corrente</option>
           </Form.Select>
         </Card.Header>
         <Card.Body style={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={lineData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={fmtMonth}
-                tickMargin={8}
-                minTickGap={24}
-              />
+              <XAxis dataKey="date" tickFormatter={fmtMonth} tickMargin={8} minTickGap={24} />
               <YAxis allowDecimals={false} tickMargin={8} />
-              <Tooltip
-                labelFormatter={(v) => fmtMonth(String(v))}
-                formatter={(v: any) => [v, "Segnalazioni"]}
-              />
+              <Tooltip labelFormatter={(v) => fmtMonth(String(v))} formatter={(v: any) => [v, "Segnalazioni"]} />
               <Line type="monotone" dataKey="count" stroke={PALETTE[0]} strokeWidth={2} dot />
             </LineChart>
           </ResponsiveContainer>
@@ -156,21 +159,15 @@ export default function DashboardCharts() {
       </Card>
 
       <Row xs={1} md={2} className="g-3">
-        {/* Fonti */}
+        {/* Reparti */}
         <Col>
           <Card>
-            <Card.Header className="bg-white fw-semibold">Analisi fonti</Card.Header>
-            <Card.Body style={{ height: 300 }}>
+            <Card.Header className="bg-white fw-semibold">Analisi reparti</Card.Header>
+            <Card.Body style={{ height: 360 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data.bySource}
-                    dataKey="value"
-                    nameKey="name"
-                    outerRadius={110}
-                    label
-                  >
-                    {data.bySource.map((_, i) => (
+                <PieChart margin={{ top: 24, right: 8, bottom: 8, left: 8 }}>
+                  <Pie data={data.byDepartment} dataKey="value" nameKey="name" outerRadius={110} label>
+                    {data.byDepartment.map((_, i) => (
                       <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
                     ))}
                   </Pie>
@@ -181,21 +178,15 @@ export default function DashboardCharts() {
           </Card>
         </Col>
 
-        {/* Reparti */}
+        {/* Categorie */}
         <Col>
           <Card>
-            <Card.Header className="bg-white fw-semibold">Analisi reparti</Card.Header>
-            <Card.Body style={{ height: 300 }}>
+            <Card.Header className="bg-white fw-semibold">Analisi categorie</Card.Header>
+            <Card.Body style={{ height: 360 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data.byDepartment}
-                    dataKey="value"
-                    nameKey="name"
-                    outerRadius={110}
-                    label
-                  >
-                    {data.byDepartment.map((_, i) => (
+                <PieChart margin={{ top: 24, right: 8, bottom: 8, left: 8 }}>
+                  <Pie data={data.byCategory} dataKey="value" nameKey="name" outerRadius={110} label>
+                    {data.byCategory.map((_, i) => (
                       <Cell key={i} fill={PALETTE[(i + 2) % PALETTE.length]} />
                     ))}
                   </Pie>
@@ -207,22 +198,15 @@ export default function DashboardCharts() {
         </Col>
       </Row>
 
-      {/* Stati nel tempo + stesso filtro mesi della linea */}
+      {/* Stati nel tempo + filtro range (sincronizzato) */}
       <Card>
         <Card.Header className="bg-white d-flex flex-wrap align-items-center justify-content-between">
           <div className="fw-semibold">Analisi stati</div>
-          <Form.Select
-            size="sm"
-            style={{ maxWidth: 220 }}
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-          >
-            <option value="__all__">Ultimi 12 mesi</option>
-            {monthOptions.map((m) => (
-              <option key={m} value={m}>
-                {fmtMonth(m)}
-              </option>
-            ))}
+          <Form.Select size="sm" style={{ maxWidth: 220 }} value={range} onChange={(e) => setRange(e.target.value)}>
+            <option value="12m">Ultimi 12 mesi</option>
+            <option value="6m">Ultimi 6 mesi</option>
+            <option value="3m">Ultimi 3 mesi</option>
+            <option value="curr">Mese corrente</option>
           </Form.Select>
         </Card.Header>
         <Card.Body style={{ height: 320 }}>
@@ -243,3 +227,4 @@ export default function DashboardCharts() {
     </div>
   );
 }
+

@@ -2,17 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { Nav } from 'react-bootstrap';
 import { useAuth } from '@/context/AuthContext';
 import { FEATURE_SETTINGS } from '@/config';
-import SettingsStatsTab from '@/pages/settings/tabs/SettingsStatsTab';
 import SettingsDepartmentsTab from '@/pages/settings/tabs/SettingsDepartmentsTab';
 import SettingsCategoriesTab from '@/pages/settings/tabs/SettingsCategoriesTab';
 import SettingsCasePolicyTab from '@/pages/settings/tabs/SettingsCasePolicyTab';
 import SettingsTemplatesTab from '@/pages/settings/tabs/SettingsTemplatesTab';
 import SettingsBillingTab from '@/pages/settings/tabs/SettingsBillingTab';
+import SettingsUsersTab from '@/pages/settings/tabs/SettingsUsersTab';
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const canSettings = FEATURE_SETTINGS && (!!user && (user.role === 'admin' || (user.permissions || []).includes('SETTINGS_ADMIN' as any)));
-  const [tab, setTab] = useState<string>('stats');
+  const [tab, setTab] = useState<string>('departments');
 
   useEffect(() => {
     try {
@@ -29,13 +29,13 @@ export default function SettingsPage() {
 
   const content = useMemo(() => {
     switch (tab) {
-      case 'stats': return <SettingsStatsTab />;
+      case 'users': return <SettingsUsersTab />;
       case 'departments': return <SettingsDepartmentsTab />;
       case 'categories': return <SettingsCategoriesTab />;
       case 'policy': return <SettingsCasePolicyTab />;
       case 'templates': return <SettingsTemplatesTab />;
       case 'billing': return <SettingsBillingTab />;
-      default: return <SettingsStatsTab />;
+      default: return <SettingsDepartmentsTab />;
     }
   }, [tab]);
 
@@ -45,7 +45,7 @@ export default function SettingsPage() {
         <h2 className="mb-0">Impostazioni</h2>
       </div>
       <Nav variant="pills" activeKey={tab} onSelect={(k) => k && setTab(k)} className="mb-3 flex-wrap" style={{ gap: 8 }}>
-        <Nav.Item><Nav.Link eventKey="stats">Dashboard</Nav.Link></Nav.Item>
+        <Nav.Item><Nav.Link eventKey="users">Utenti</Nav.Link></Nav.Item>
         <Nav.Item><Nav.Link eventKey="departments">Reparti</Nav.Link></Nav.Item>
         <Nav.Item><Nav.Link eventKey="categories">Categorie</Nav.Link></Nav.Item>
         <Nav.Item><Nav.Link eventKey="policy">Policy dei casi</Nav.Link></Nav.Item>
