@@ -6,6 +6,8 @@ import Nav from "react-bootstrap/Nav";
 import Dropdown from "react-bootstrap/Dropdown";
 import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
+import { NotificationsProvider } from "@/context/NotificationsContext";
+import NotificationBell from "@/components/common/NotificationBell";
 
 export function UserBadge() {
   const auth: any = useAuth();
@@ -65,6 +67,7 @@ export function PrivateLayout() {
   }, []);
 
   return (
+    <NotificationsProvider>
     <div className="lmw-shell">
       {/* Colonna sinistra: sidebar fino in alto */}
       <aside className="lmw-sidebar">
@@ -76,6 +79,8 @@ export function PrivateLayout() {
         <Navbar expand="md" variant="dark" className="lmw-topbar shadow-sm">
           <Container fluid className="justify-content-end">
             <Nav className="align-items-center gap-3">
+              {/* Campanella notifiche */}
+              <NotificationBell />
               <Dropdown align="end">
                 <Dropdown.Toggle size="sm" variant="outline-light" id="dropdown-user" className="text-light border-0">
                   {(() => {
@@ -106,6 +111,7 @@ export function PrivateLayout() {
         </div>
       </section>
     </div>
+    </NotificationsProvider>
   );
 }
 

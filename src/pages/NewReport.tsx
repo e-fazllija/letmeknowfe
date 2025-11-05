@@ -134,15 +134,18 @@ export default function NewReport() {
       const src = (REPORT_SOURCES as readonly string[]).includes(String(data.source)) ? data.source : "OTHER";
       const prv = String(data.privacyMode) === "CONFIDENZIALE" ? "CONFIDENZIALE" : "ANONIMO";
 
-      const body = {
+      // Mapping form -> payload FE: Oggetto -> title, Descrizione -> summary
+      const payload = {
         date: new Date(data.date).toISOString(),
         source: src,
         privacy: prv,
-        subject: data.title,
+        title: (data.title ?? "").trim(),
+        // Se in futuro esiste form.summary, usa quello; altrimenti mappa description -> summary
+        summary: ((data as any).summary?.trim?.() || data.description?.trim() || ""),
         departmentId: data.department,
         categoryId: data.category,
-        description: data.description,
       } as const;
+
 
       // Allegati via presign -> PUT -> finalize -> raccolta metadati
       let attachments: Array<{ fileName:string; mimeType:string; sizeBytes:number; storageKey:string; proof?:string }> = [];
@@ -150,6 +153,13 @@ export default function NewReport() {
         const filesList: FileList | undefined = (data as any)?.attachments as FileList | undefined;
         const files = filesList ? Array.from(filesList).slice(0, 3) : [];
         for (const file of files) {
+          const MAX_FILES = Number(import.meta.env.VITE_ATTACH_MAX_FILES || 3);
+          const MAX_MB = Number(import.meta.env.VITE_ATTACH_MAX_FILE_MB || 10);
+          const MAX_TOTAL_MB = Number(import.meta.env.VITE_ATTACH_MAX_TOTAL_MB || 20);
+          const ALLOWED = ["image/png","image/jpeg","application/pdf","text/plain","audio/mpeg","audio/wav"];
+          const total = files.reduce((s,f)=>s+f.size,0);
+          if (files.length > MAX_FILES || total > MAX_TOTAL_MB*1024*1024 || files.some(f => f.size > MAX_MB*1024*1024)) { throw new Error("Limiti allegati superati (max 3 file, 10MB ciascuno, 20MB totali)"); }
+          if (files.some(f => !ALLOWED.includes(f.type || ""))) { throw new Error("Tipo file non consentito"); }
           const p = await presignAttachment({ fileName: file.name, mimeType: file.type || "application/octet-stream", sizeBytes: file.size });
           const extra: Record<string,string> | undefined = (p as any)?.headers && Object.keys((p as any).headers || {}).length
             ? (p as any).headers
@@ -172,7 +182,12 @@ export default function NewReport() {
 
       if (REPORTS_API_ENABLED) {
         const res = await createReport({
-          ...(body as any),
+          date: payload.date,
+          source: payload.source as any,
+          subject: payload.title,
+          departmentId: payload.departmentId,
+          categoryId: payload.categoryId,
+          description: payload.summary,
           ...(prv === "CONFIDENZIALE" && String(data.name ?? "").trim() ? { reporterName: String(data.name ?? "").trim() } : {}),
           attachments,
         });
@@ -343,7 +358,7 @@ export default function NewReport() {
 
             <Form.Group className="mb-3" controlId="attachments">
               <Form.Label>Allegati</Form.Label>
-              <Form.Control type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic" disabled={!PRESIGN_ENABLED} title={PRESIGN_ENABLED ? undefined : "Funzione non disponibile"} {...register("attachments")} />
+              <Form.Control type="file" multiple accept=".png,.jpg,.jpeg,.pdf,.txt,.mp3,.wav" disabled={!PRESIGN_ENABLED} title={PRESIGN_ENABLED ? undefined : "Funzione non disponibile"} {...register("attachments")} />
               <div className="form-text">{PRESIGN_ENABLED ? "File fino a ~100MB." : "Funzione non disponibile."}</div>
             </Form.Group>
 
@@ -391,3 +406,7 @@ export default function NewReport() {
     </div>
   );
 }
+
+
+
+

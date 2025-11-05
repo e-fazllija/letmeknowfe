@@ -1,5 +1,5 @@
 // src/lib/reports.service.ts
-import api, { v1, getSavedTenantId } from "@/lib/api";
+import api, { v1 } from "@/lib/api";
 
 export type TenantReportCreate = {
   date: string; // ISO

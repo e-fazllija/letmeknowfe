@@ -18,18 +18,18 @@ import {
   unassign,
   patchMessageBody,
   patchMessageNote,
-  getAttachments,
-  buildAttachmentDownloadUrl,
   type AttachmentItem,
   type ReportStatus,
   type Message,
 } from "@/lib/reports.v2.service";
 import { finalizeAttachment, presignAttachment, uploadPresigned } from "@/lib/attachments.service";
 import { useUserResolver } from "@/lib/useUserResolver";
+import { stripSystemPrefix, buildUserIndex, replaceUserIds, systemSideLabel } from "@/lib/messages.format";
+import { listReportAttachments, downloadAttachment as dlAttachment } from "@/lib/reportAttachments.service";
 import UserSelect from "@/components/UserSelect";
 
 function renderPlainWithBreaks(s?: string | null) {
-  if (!s) return <span className="text-muted">—</span>;
+  if (!s) return <span className="text-muted">�</span>;
   const safe = String(s)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -43,6 +43,12 @@ function extractUserIdFromText(text?: string): string | undefined {
   if (!text) return;
   const m = String(text || "").match(/\bcmh[0-9a-z]{10,}\b/i);
   return m ? m[0] : undefined;
+}
+
+function getReportTitle(r?: any) {
+  const t = r?.title?.trim?.();
+  const s = r?.summary?.trim?.(); // fallback
+  return t || s || "—";
 }
 
 const StatusSchema = z.object({
@@ -87,7 +93,7 @@ export default function ReportDetailV2() {
         const data = await getReportById(id);
         const wr = (data as any)?.whistleReport || data;
         setReport(wr || null);
-        // messages asc possono arrivare giÃ  nel dettaglio; se non presenti, fetch separato
+        // messages asc possono arrivare già nel dettaglio; se non presenti, fetch separato
         const msgs = Array.isArray((data as any)?.messages) ? (data as any).messages : await getMessages(id, 'ALL');
         setMessages(msgs as Message[]);
         // labels
@@ -101,8 +107,8 @@ export default function ReportDetailV2() {
         } catch { /* ignore */ }
         // attachments list (tenant)
         try {
-          const atts = await getAttachments(id);
-          setAttachments(atts || []);
+          const atts = await listReportAttachments(id) as any[];
+          setAttachments((Array.isArray(atts) ? atts : []) as AttachmentItem[]);
         } catch { /* ignore */ }
         // users (admin)
         try {
@@ -162,6 +168,7 @@ export default function ReportDetailV2() {
   }, [effectiveAssigneeId, JSON.stringify(assignMessages)]);
 
   const userMap = useUserResolver(idsToResolve);
+  const userIndex = useMemo(() => buildUserIndex(report, user), [report, user]);
 
   // Descrizione (read-only)
   const descriptionText: string = (report as any)?.summary ?? "";
@@ -217,7 +224,7 @@ export default function ReportDetailV2() {
       setReport((prev: any) => ({ ...(prev || {}), assigneeId: 'me' }));
     } catch (e: any) {
       const s = e?.response?.status;
-      if (s === 409) setToast({ show: true, message: 'Segnalazione giÃ  assegnata a un altro utente.', variant: 'danger' });
+      if (s === 409) setToast({ show: true, message: 'Segnalazione già assegnata a un altro utente.', variant: 'danger' });
       else if (s === 403) setToast({ show: true, message: 'Permessi insufficienti', variant: 'danger' });
       else setToast({ show: true, message: 'Errore di connessione. Riprova.', variant: 'danger' });
     }
@@ -226,7 +233,7 @@ export default function ReportDetailV2() {
   async function onAssignUser() {
     if (!assignUserId) return;
     try { await assign(id, assignUserId); setToast({ show: true, message: 'Assegnazione aggiornata', variant: 'success' }); }
-    catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: 'Permessi insufficienti', variant: 'danger' }); else if (s === 409) setToast({ show: true, message: 'Già assegnato a un altro utente', variant: 'danger' }); else setToast({ show: true, message: 'Errore di connessione. Riprova.', variant: 'danger' }); }
+    catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: 'Permessi insufficienti', variant: 'danger' }); else if (s === 409) setToast({ show: true, message: 'Gi� assegnato a un altro utente', variant: 'danger' }); else setToast({ show: true, message: 'Errore di connessione. Riprova.', variant: 'danger' }); }
   }
   async function onUnassign() {
     try { await unassign(id); setToast({ show: true, message: 'Assegnazione rimossa', variant: 'success' }); }
@@ -235,6 +242,7 @@ export default function ReportDetailV2() {
 
   // Attachments
   const [uploading, setUploading] = useState(false);
+  const ALLOW_UNSCANNED_DOWNLOAD = String(import.meta.env.VITE_ALLOW_UNSCANNED_DOWNLOAD || '').toLowerCase() === 'true';
   async function onFilesSelected(files: FileList | null) {
     if (!files || !files.length) return;
     const arr = Array.from(files);
@@ -242,11 +250,11 @@ export default function ReportDetailV2() {
     const MAX_FILES = Number(import.meta.env.VITE_ATTACH_MAX_FILES || 3);
     const MAX_MB = Number(import.meta.env.VITE_ATTACH_MAX_FILE_MB || 10);
     const MAX_TOTAL_MB = Number(import.meta.env.VITE_ATTACH_MAX_TOTAL_MB || 20);
-    const ALLOWED = ["image/png","image/jpeg","application/pdf","text/plain"];
+    const ALLOWED = ["image/png","image/jpeg","application/pdf","text/plain","audio/mpeg","audio/wav"];
     if (arr.length > MAX_FILES) { setToast({ show: true, message: `Limiti: max ${MAX_FILES} file`, variant: 'danger' }); return; }
     const total = arr.reduce((s,f)=>s+f.size,0);
     if (total > MAX_TOTAL_MB*1024*1024 || arr.some(f => f.size > MAX_MB*1024*1024)) {
-      setToast({ show: true, message: "Limiti: max 3 file, 10 MB ciascuno, 20 MB totali; tipi consentiti: png/jpeg/pdf/txt.", variant: 'danger' });
+      setToast({ show: true, message: "Limiti: max 3 file, 10 MB ciascuno, 20 MB totali; tipi consentiti: png/jpeg/pdf/txt/mp3/wav.", variant: 'danger' });
       return;
     }
     if (arr.some(f => !ALLOWED.includes(f.type || ''))) {
@@ -261,7 +269,7 @@ export default function ReportDetailV2() {
         await finalizeAttachment({ storageKey: p.storageKey, sizeBytes: f.size, fileName: f.name, mimeType: f.type || 'application/octet-stream', etag: etag || undefined, proof: p.proof });
       }
       // Refresh lista allegati dopo upload
-      try { const atts = await getAttachments(id); setAttachments(atts || []); } catch { /* ignore */ }
+      try { const atts = await listReportAttachments(id) as any[]; setAttachments((Array.isArray(atts) ? atts : []) as AttachmentItem[]); } catch { /* ignore */ }
       setToast({ show: true, message: 'Allegati caricati', variant: 'success' });
     } catch (e: any) {
       const s = e?.response?.status;
@@ -272,13 +280,13 @@ export default function ReportDetailV2() {
     }
   }
 
-  const shownMessages = useMemo(() => messages, [messages]);
+  const shownMessages = useMemo(() => { const list = Array.isArray(messages) ? messages.slice() : []; list.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); return list; }, [messages]);
 
   if (loading) {
     return (
       <div className="container py-4 d-flex align-items-center" style={{ gap: 8 }}>
         <Spinner animation="border" size="sm" />
-        <span>Caricamentoâ€¦</span>
+        <span>Caricamento…</span>
       </div>
     );
   }
@@ -297,8 +305,14 @@ export default function ReportDetailV2() {
       <Card className="shadow-sm mb-3">
         <Card.Header>
           <div className="d-flex align-items-center justify-content-between">
-            <div>
-              <strong>{report.id || report.reportId}</strong>{' '}
+            <div className="d-flex align-items-center" style={{ gap: 8, minWidth: 0 }}>
+              <h5
+                className="mb-0 text-truncate"
+                title={String(report?.title || report?.summary || '')}
+                style={{ maxWidth: '70vw' }}
+              >
+                {getReportTitle(report)}
+              </h5>
               <Badge bg={String(report.status) === 'CLOSED' ? 'success' : 'warning'}>{String(report.status || '-')}</Badge>
             </div>
             <small>creata il {new Date(report.createdAt).toLocaleString()}</small>
@@ -309,7 +323,7 @@ export default function ReportDetailV2() {
             <Col md={6}>
               <div className="mb-2 text-muted">
                 <small>
-                  Dipartimento: {deptName} â€” Categoria: {catName}
+                  Dipartimento: {deptName} — Categoria: {catName}
                 </small>
               </div>
               <div className="mb-2"><strong>Canale:</strong> {String(report.channel || report.source || 'OTHER')}</div>
@@ -405,45 +419,42 @@ export default function ReportDetailV2() {
             <Card.Body>
               <ListGroup>
                 {shownMessages.map((m) => (
-                  <ListGroup.Item key={m.id}>
+                  <ListGroup.Item key={(m as any).id}>
                     <div className="d-flex justify-content-between align-items-center">
                       <div>
-                        <Badge bg={(m as any).visibility === 'INTERNAL' ? 'secondary' : 'primary'}>{(m as any).visibility || 'INTERNAL'}</Badge>{' '}
-                        <strong>{m.author || '-'}</strong>
+                        {(() => {
+                          const vis = String((m as any).visibility || "").toUpperCase();
+                          const isSystem = vis === "SYSTEM" || String((m as any).type || "").toUpperCase() === "SYSTEM";
+                          if (isSystem) {
+                            const side = systemSideLabel(m as any);
+                            return (
+                              <>
+                                <Badge bg={"warning"}>SYSTEM</Badge>{" "}
+                                {side ? <small className="text-muted text-uppercase fw-semibold">{side}</small> : null}
+                              </>
+                            );
+                          }
+                          return (
+                            <>
+                              <Badge bg={vis === "INTERNAL" ? "secondary" : "primary"}>{vis || "INTERNAL"}</Badge>{" "}
+                              <strong>{(m as any)?.author || "-"}</strong>
+                            </>
+                          );
+                        })()}
                       </div>
-                      <small>{new Date(m.createdAt).toLocaleString()}</small>
+                      <small>{new Date((m as any).createdAt).toLocaleString()}</small>
                     </div>
                     {(() => {
-                      const isSystem = String((m as any)?.type || "").toUpperCase() === "SYSTEM";
-                      const kind = String((m as any)?.systemKind || "").toUpperCase();
+                      const vis = String((m as any)?.visibility || "").toUpperCase();
+                      const isSystem = vis === "SYSTEM" || String((m as any)?.type || "").toUpperCase() === "SYSTEM";
                       const bodyText = (m as any)?.body || (m as any)?.text || "";
-                      const isAssign = isSystem && (kind.includes("ASSIGN") || /assegnat[oa]\s+a\s+utente/i.test(bodyText) || /assigned\s+to\s+user/i.test(bodyText));
-                      if (isAssign) {
-                        const targetId = (m as any)?.payload?.assigneeId || (m as any)?.payload?.targetUserId || extractUserIdFromText(bodyText);
-                        const targetLabel =
-                          (targetId && (userMap[String(targetId)]?.email || userMap[String(targetId)]?.displayName)) ||
-                          String(targetId || "utente");
-                        const text = `Caso assegnato a ${targetLabel}.`;
-                        return <div className="mt-1" style={{ whiteSpace: 'pre-wrap' }}>{text}</div>;
+                      if (isSystem) {
+                        const cleaned = stripSystemPrefix(bodyText);
+                        const replaced = replaceUserIds(cleaned, userIndex);
+                        return <div className="mt-1" style={{ whiteSpace: "pre-wrap" }}>{replaced || "—"}</div>;
                       }
-                      return <div className="mt-1" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>;
+                      return <div className="mt-1" style={{ whiteSpace: "pre-wrap" }}>{bodyText || "—"}</div>;
                     })()}
-                    {(m as any).visibility === 'INTERNAL' && (
-                      <div className="mt-2 d-flex" style={{ gap: 8 }}>
-                        <Button size="sm" variant="outline-secondary" onClick={async () => {
-                          const next = prompt('Modifica nota', String((m as any).note || ''));
-                          if (next == null) return;
-                          try { await patchMessageNote(id, m.id, next); setToast({ show: true, message: 'Nota aggiornata', variant: 'success' }); const list = await getMessages(id, 'ALL'); setMessages(list as Message[]); }
-                          catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: 'Non hai i permessi per questa operazione', variant: 'danger' }); else setToast({ show: true, message: 'Errore salvataggio nota', variant: 'danger' }); }
-                        }}>Modifica nota</Button>
-                        <Button size="sm" variant="outline-secondary" onClick={async () => {
-                          const next = prompt('Modifica testo', String(m.body || ''));
-                          if (next == null) return;
-                          try { await patchMessageBody(id, m.id, next); setToast({ show: true, message: 'Messaggio aggiornato', variant: 'success' }); const list = await getMessages(id, 'ALL'); setMessages(list as Message[]); }
-                          catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: 'Non hai i permessi per questa operazione', variant: 'danger' }); else setToast({ show: true, message: 'Errore salvataggio messaggio', variant: 'danger' }); }
-                        }}>Modifica body</Button>
-                      </div>
-                    )}
                   </ListGroup.Item>
                 ))}
                 {shownMessages.length === 0 && (
@@ -482,7 +493,7 @@ export default function ReportDetailV2() {
             <Card.Header><strong>Allegati</strong></Card.Header>
             <Card.Body>
               <Form.Group controlId="fileUpload">
-                <Form.Control type="file" multiple accept="image/png,image/jpeg,application/pdf,text/plain" disabled={uploading} onChange={(e) => onFilesSelected((e.currentTarget as HTMLInputElement).files)} />
+                <Form.Control type="file" multiple accept=".png,.jpg,.jpeg,.pdf,.txt,.mp3,.wav" disabled={uploading} onChange={(e) => onFilesSelected((e.currentTarget as HTMLInputElement).files)} />
               </Form.Group>
               <small className="text-muted d-block mt-2">Max 3 file, 10MB ciascuno, 20MB totali</small>
               <hr />
@@ -496,10 +507,10 @@ export default function ReportDetailV2() {
                       <ListGroup.Item key={a.id} className="d-flex justify-content-between align-items-center">
                         <div>
                           <div className="fw-semibold">{a.fileName}</div>
-                          <small className="text-muted">{a.mimeType} Â· {(a.sizeBytes/1024).toFixed(0)} KB</small>
+                          <small className="text-muted">{a.mimeType} � {(a.sizeBytes/1024).toFixed(0)} KB � {(a as any).status ? String((a as any).status).toUpperCase() : "UPLOADED"}</small>
                         </div>
                         <div>
-                          <a className="btn btn-sm btn-outline-secondary" href={buildAttachmentDownloadUrl(id, a.id)} target="_blank" rel="noreferrer">Scarica</a>
+                          <Button size="sm" variant="outline-secondary" disabled={String((a as any).status || "").toUpperCase() !== "CLEAN" && !ALLOW_UNSCANNED_DOWNLOAD} onClick={async () => { try { const blob = await dlAttachment(id, a.id); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = a.fileName || "attachment"; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); } catch { setToast({ show: true, message: "Download non riuscito", variant: "danger" }); } }}>Scarica</Button>
                         </div>
                       </ListGroup.Item>
                     ))}
@@ -519,3 +530,7 @@ export default function ReportDetailV2() {
     </div>
   );
 }
+
+
+
+
