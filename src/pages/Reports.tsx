@@ -1,15 +1,17 @@
 ﻿// src/pages/Reports.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Button, Table, Form, Spinner, Pagination, InputGroup } from "react-bootstrap";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useReports } from "@/hooks/useReports";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useCategories } from "@/hooks/useCategories";
 import { useDebounced } from "@/hooks/useDebounced";
+import { useArchive } from "@/lib/archive.service";
 
 export default function Reports() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [params, setParams] = useSearchParams();
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -44,6 +46,9 @@ export default function Reports() {
     if (filters.categoryId) p.set("categoryId", filters.categoryId);
     p.set("page", String(filters.page));
     p.set("pageSize", String(filters.pageSize));
+    // preserva eventuale vista archivio
+    const current = new URLSearchParams(location.search);
+    if (current.get("view") === "archive") p.set("view", "archive");
     navigate({ pathname: "/reports", search: `?${p.toString()}` }, { replace: true });
   }, [filters, navigate]);
 
@@ -61,6 +66,8 @@ export default function Reports() {
 
   const deptName = useMemo(() => new Map(departments.map(d => [d.id, d.name])), [departments]);
   const catName = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
+  const { ids: archivedIds, add: archive, remove: unarchive, has: isArchived } = useArchive();
+  const isArchiveView = params.get("view") === "archive";
 
   const handleChange = (name: string, value: string) => {
     setFilters((prev) => ({ ...prev, [name]: value, page: 1 }));
@@ -78,10 +85,16 @@ export default function Reports() {
     return <div className="container py-4"><div className="alert alert-danger">{String(error)}</div></div>;
   }
 
+  // filtro visuale su elenco lato FE (paginazione resta server-side)
+  const rows = reports ?? [];
+  const visibleRows = isArchiveView
+    ? rows.filter((r) => archivedIds.has(r.id))
+    : rows.filter((r) => !archivedIds.has(r.id));
+
   return (
     <div className="container-fluid p-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="mb-0">Segnalazioni</h2>
+        <h2 className="mb-0">{isArchiveView ? "Archivio segnalazioni" : "Segnalazioni"}</h2>
         <Button variant="dark" onClick={() => navigate('/new')}>Nuova</Button>
       </div>
 
@@ -125,16 +138,45 @@ export default function Reports() {
           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Form.Select>
 
-        <Form.Select value={filters.pageSize} onChange={(e) => handleChange('pageSize', String(Number(e.target.value) || 20))} style={{ width: 100 }}>
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-          <option value={50}>50</option>
-          <option value={100}>100</option>
-        </Form.Select>
+        {/* Gruppo pageSize + Reset */}
+        <div className="d-inline-flex align-items-center gap-2">
+          <Form.Select value={filters.pageSize} onChange={(e) => handleChange('pageSize', String(Number(e.target.value) || 20))} style={{ width: 100 }}>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </Form.Select>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={() => setFilters({ page: 1, pageSize: 20, q: '', status: '', departmentId: '', categoryId: '' })}
+            title="Azzera filtri"
+          >
+            Reset
+          </Button>
+        </div>
 
-        <Button variant="outline-secondary" onClick={() => setFilters({ page: 1, pageSize: 20, q: '', status: '', departmentId: '', categoryId: '' })}>
-          Reset
-        </Button>
+        {/* Contenitore destro: bottoni vista */}
+        <div className="ms-auto d-inline-flex align-items-center gap-2">
+          <button
+            type="button"
+            className={`btn btn-sm ${!isArchiveView ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => { params.delete("view"); setParams(params, { replace: true }); }}
+            title="Mostra tutte le segnalazioni"
+            aria-pressed={!isArchiveView}
+          >
+            <span aria-hidden="true">📄</span>
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${isArchiveView ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => { params.set("view", "archive"); setParams(params, { replace: true }); }}
+            title="Mostra archivio"
+            aria-pressed={isArchiveView}
+          >
+            <span aria-hidden="true">🗃️</span>
+          </button>
+        </div>
       </div>
 
       <Table striped bordered hover responsive className="align-middle text-center">
@@ -149,17 +191,17 @@ export default function Reports() {
           </tr>
         </thead>
         <tbody>
-          {reports.length === 0 && (
+          {visibleRows.length === 0 && (
             <tr>
               <td colSpan={6} className="text-muted">Nessuna segnalazione trovata.</td>
             </tr>
           )}
-          {reports.map((r) => (
+          {visibleRows.map((r) => (
             <tr key={r.id}>
-              <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</td>
-              <td>{deptName.get(r.departmentId || '') || '—'}</td>
-              <td>{catName.get(r.categoryId || '') || '—'}</td>
-              <td style={{ fontWeight: 600 }}>{r.title || '—'}</td>
+              <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '-'}</td>
+              <td>{deptName.get(r.departmentId || '') || '-'}</td>
+              <td>{catName.get(r.categoryId || '') || '-'}</td>
+              <td style={{ fontWeight: 600 }}>{r.title || '-'}</td>
               <td>
                 <span className={`badge ${
                   r.status === 'OPEN' ? 'bg-warning text-dark' :
@@ -170,6 +212,31 @@ export default function Reports() {
               </td>
               <td>
                 <Button size="sm" variant="dark" onClick={() => navigate(`/reports/${encodeURIComponent(r.id)}`)}>Apri</Button>
+                {isArchiveView ? (
+                  <Button
+                    size="sm"
+                    variant="outline-secondary"
+                    className="ms-2"
+                    onClick={() => {
+                      unarchive(r.id);
+                    }}
+                  >
+                    Recupera
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline-secondary"
+                    className="ms-2"
+                    onClick={() => {
+                      archive(r.id);
+                    }}
+                    disabled={isArchived(r.id)}
+                    title={isArchived(r.id) ? "Già in archivio" : "Sposta in archivio"}
+                  >
+                    Archivia
+                  </Button>
+                )}
               </td>
             </tr>
           ))}
