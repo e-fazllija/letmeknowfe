@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Col, Form, InputGroup, Row, Spinner, Table, Toast, ToastContainer } from 'react-bootstrap';
-import api, { v1, getSavedTenantId } from '@/lib/api';
+import { Alert, Badge, Button, Col, Form, Row, Spinner, Table, Toast, ToastContainer } from 'react-bootstrap';
+import api, { v1 } from '@/lib/api';
 
 type TenantUser = { id: string; email?: string; name?: string; role?: string; createdAt?: string };
 
@@ -10,7 +10,6 @@ export default function SettingsUsersTab() {
   const [error, setError] = useState<string | null>(null);
 
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [role, setRole] = useState<'AGENT' | 'ADMIN' | 'AUDITOR'>('AGENT');
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -34,23 +33,20 @@ export default function SettingsUsersTab() {
 
   const canSubmit = useMemo(() => {
     const hasEmail = email.trim().length > 3;
-    const passOk = password.trim().length >= 6;
-    return hasEmail && passOk && !creating;
-  }, [email, password, creating]);
+    return hasEmail && !creating;
+  }, [email, creating]);
 
   const onCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     setCreating(true);
     try {
-      const clientId = getSavedTenantId() || '';
-      await api.post(v1('tenant/users'), { clientId, email: email.trim(), password: password.trim(), role }, { withCredentials: true, headers: { 'Content-Type': 'application/json' } });
-      setToast({ show: true, message: 'Utente creato', variant: 'success' });
+      await api.post(v1('tenant/users/invite'), { email: email.trim(), role }, { withCredentials: true, headers: { 'Content-Type': 'application/json' } });
+      setToast({ show: true, message: 'Invito inviato', variant: 'success' });
       setEmail('');
-      setPassword('');
       await load();
     } catch (e: any) {
-      setToast({ show: true, message: e?.response?.data?.message || e?.message || 'Errore creazione utente', variant: 'danger' });
+      setToast({ show: true, message: e?.response?.data?.message || e?.message || 'Errore invito utente', variant: 'danger' });
     } finally {
       setCreating(false);
     }
@@ -100,22 +96,13 @@ export default function SettingsUsersTab() {
     <div>
       <h6 className="mb-3">Utenti del tenant</h6>
 
-      {/* Create user */}
+      {/* Invite user */}
       <Form onSubmit={onCreateUser} className="mb-4">
         <Row className="g-3">
           <Col md={4}>
             <Form.Group>
               <Form.Label className="fw-semibold">Email nuovo utente</Form.Label>
               <Form.Control type="email" placeholder="nome@azienda.it" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            </Form.Group>
-          </Col>
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label className="fw-semibold">Password temporanea</Form.Label>
-              <InputGroup>
-                <Form.Control type="text" placeholder="min 6 caratteri" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
-                <Button variant="outline-secondary" type="button" onClick={() => setPassword(genPass())}>Genera</Button>
-              </InputGroup>
             </Form.Group>
           </Col>
           <Col md={4}>
@@ -127,9 +114,13 @@ export default function SettingsUsersTab() {
                 <option value="AUDITOR">AUDITOR</option>
               </Form.Select>
             </Form.Group>
-            <div className="d-flex justify-content-end mt-3">
-              <Button variant="dark" type="submit" disabled={!canSubmit}>{creating ? <Spinner size="sm" animation="border" /> : 'Crea utente'}</Button>
-            </div>
+          </Col>
+          <Col md={4}>
+            <Form.Group className="d-flex align-items-end h-100">
+              <Button variant="dark" type="submit" disabled={!canSubmit}>
+                {creating ? <Spinner size="sm" animation="border" /> : 'Crea utente'}
+              </Button>
+            </Form.Group>
           </Col>
         </Row>
       </Form>
@@ -190,11 +181,6 @@ export default function SettingsUsersTab() {
       </ToastContainer>
     </div>
   );
-}
-
-function genPass(): string {
-  const s = Math.random().toString(36).slice(-8);
-  return s.length >= 6 ? s : s + 'A1!';
 }
 
 function roleColor(role?: string): 'primary' | 'secondary' | 'warning' | 'dark' | 'info' | 'success' | 'danger' {
