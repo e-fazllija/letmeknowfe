@@ -16,6 +16,7 @@ import {
   assignMe,
   assign,
   unassign,
+  takeReport,
   patchMessageBody,
   patchMessageNote,
   type AttachmentItem,
@@ -114,9 +115,11 @@ export default function ReportDetailV2() {
   const [users, setUsers] = useState<Array<{ id: string; email?: string; name?: string }>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [assignBusy, setAssignBusy] = useState(false);
+  const [loadingTake, setLoadingTake] = useState(false);
 
   const isAdmin = (user?.role === 'admin' || user?.role === 'superhost');
   const isAgent = (user?.role === 'agent');
+  const meId = user?.id ? String(user.id) : undefined;
 
   useEffect(() => {
     (async () => {
@@ -164,7 +167,7 @@ export default function ReportDetailV2() {
 
   // --- User resolver (assignee + SYSTEM assign messages, robust) ---
   const candidateAssigneeIdFromDetail: string | undefined =
-    (report as any)?.assigneeId ?? (report as any)?.assignedToUserId ?? (report as any)?.internalUserId ?? undefined;
+    (report as any)?.internalUserId ?? (report as any)?.assigneeId ?? (report as any)?.assignedToUserId ?? undefined;
 
   const assignMessages = useMemo(() => {
     const list = Array.isArray(messages) ? messages.slice() : [];
@@ -273,6 +276,32 @@ export default function ReportDetailV2() {
   async function onUnassign() {
     try { await unassign(id); setToast({ show: true, message: 'Assegnazione rimossa', variant: 'success' }); }
     catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: 'Permessi insufficienti', variant: 'danger' }); else setToast({ show: true, message: 'Errore di connessione. Riprova.', variant: 'danger' }); }
+  }
+
+  async function refetchReport() {
+    try {
+      const data = await getReportById(id);
+      const wr = (data as any)?.whistleReport || data;
+      setReport(wr || null);
+    } catch {}
+  }
+
+  async function handleTake() {
+    try {
+      const res = await takeReport(id);
+      const taken = (res as any)?.report;
+      if (taken) setReport(taken);
+      // rifresca per allineare altri pannelli/campi derivati
+      await refetchReport();
+      setToast({ show: true, message: (res as any)?.message === 'ALREADY_IN_PROGRESS' ? 'Già in carico' : 'Caso preso in carico', variant: 'success' });
+    } catch (e: any) {
+      const s = e?.response?.status;
+      if (s === 403) setToast({ show: true, message: 'Solo l’assegnatario può prendere in carico', variant: 'danger' });
+      else if (s === 409) setToast({ show: true, message: 'Aggiornamento concorrente, riprova', variant: 'danger' });
+      else if (s === 404) setToast({ show: true, message: 'Segnalazione non trovata', variant: 'danger' });
+      else if (s === 400) setToast({ show: true, message: 'Stato non coerente o dati mancanti', variant: 'danger' });
+      else setToast({ show: true, message: 'Errore inatteso', variant: 'danger' });
+    }
   }
 
   // Attachments
@@ -400,20 +429,47 @@ export default function ReportDetailV2() {
         <Card.Header className="d-flex justify-content-between align-items-center">
           <strong>Assegnazione</strong>
           <div className="d-flex align-items-center" style={{ gap: 8 }}>
-            {(isAgent && !report.assigneeId) && (
-              <Button size="sm" disabled={assignBusy} onClick={async () => { try { setAssignBusy(true); await onAssignMe(); } finally { setAssignBusy(false); } }}>
-                {assignBusy ? '...' : 'Prendi in carico'}
-              </Button>
-            )}
+            {(() => {
+              const assignee = String((report as any)?.internalUserId || (report as any)?.assigneeId || (report as any)?.assignedToUserId || "");
+              const hasAssignee = !!assignee;
+              const statusOpen = String((report as any)?.status || '').toUpperCase() === 'OPEN';
+              const resolvedEmail = assignee ? (userMap[assignee]?.email || userMap[assignee]?.displayName) : undefined;
+              const meEmail = user?.email ? String(user.email).toLowerCase().trim() : undefined;
+              const canTake = isAgent && statusOpen && hasAssignee && (
+                (!!meId && assignee === meId) ||
+                (!!meEmail && !!resolvedEmail && String(resolvedEmail).toLowerCase().trim() === meEmail) ||
+                (!meId) ||
+                (!resolvedEmail)
+              );
+              return (
+                <>
+                  {(isAgent && !hasAssignee) && (
+                    <Button size="sm" disabled={assignBusy} onClick={async () => { try { setAssignBusy(true); await onAssignMe(); } finally { setAssignBusy(false); } }}>
+                      {assignBusy ? '...' : 'Assegna a me'}
+                    </Button>
+                  )}
+                  {(canTake) && (
+                    <Button size="sm" variant="dark" disabled={assignBusy || loadingTake} onClick={async () => { try { setLoadingTake(true); await handleTake(); } finally { setLoadingTake(false); } }} className="ms-2">
+                      {loadingTake ? '...' : 'Prendi in carico'}
+                    </Button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </Card.Header>
         <Card.Body>
           <div className="d-flex align-items-center justify-content-between">
             <div>
               {(() => {
-                const assId = effectiveAssigneeId || String((report as any)?.assigneeId || (report as any)?.assignedToUserId || "");
+                const assId = effectiveAssigneeId || String((report as any)?.internalUserId || (report as any)?.assigneeId || (report as any)?.assignedToUserId || "");
+                const resolved = assId && (userMap[assId]?.email || userMap[assId]?.displayName);
                 const assigneeLabel =
-                  (assId && (userMap[assId]?.email || userMap[assId]?.displayName)) ||
+                  (assId && (
+                    (meId && assId === meId && user?.email) ||
+                    resolved ||
+                    (isAgent ? (user?.email || "me") : undefined)
+                  )) ||
                   assId ||
                   "-";
                 return <div><strong>Assegnato a:</strong> {assigneeLabel}</div>;

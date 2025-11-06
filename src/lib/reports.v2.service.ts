@@ -106,6 +106,15 @@ export async function unassign(reportId: string): Promise<void> {
   await api.post(v1(`tenant/reports/${encodeURIComponent(reportId)}/unassign`), undefined, { withCredentials: true });
 }
 
+export async function takeReport(reportId: string): Promise<{ message: string; report: any }> {
+  const { data } = await api.post(
+    v1(`tenant/reports/${encodeURIComponent(reportId)}/take`),
+    undefined,
+    { withCredentials: true }
+  );
+  return (data as any) || { message: "", report: null };
+}
+
 export async function postMessage(input: { reportId: string; body: string; visibility?: MessageVisibility }): Promise<Message> {
   const { data } = await api.post(v1("tenant/reports/message"), input, { withCredentials: true });
   return data as Message;

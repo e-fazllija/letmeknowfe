@@ -8,7 +8,7 @@ import { signupTenantUser } from "@/lib/auth";
 export type Role = "admin" | "agent" | "user" | "superhost";
 export type Permission = "REPORTS_VIEW" | "REPORT_CREATE" | "REPORTS_MANAGE" | "SETTINGS_ADMIN";
 
-type User = { email: string; role: Role; permissions?: Permission[] };
+type User = { id?: string; email: string; role: Role; permissions?: Permission[] };
 
 // Fase corrente dell'autenticazione
 type AuthPhase = 'anon' | 'login' | 'mfa' | 'auth';
@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data) {
           const roleNorm = data.role ? String(data.role).toLowerCase() as Role : undefined;
           const next: User = {
+            id: (data as any)?.id || (data as any)?.sub || undefined,
             email: data.email ?? "",
             role: (roleNorm as Role) ?? ("user" as Role),
             permissions: Array.isArray(data.permissions) ? data.permissions : [],
@@ -200,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data: any = await apiMe();
       if (data) {
         const roleNorm = data.role ? String(data.role).toLowerCase() as Role : 'user';
-        setUser({ email: data.email ?? email, role: (roleNorm as Role), permissions: Array.isArray(data.permissions) ? data.permissions : [] });
+        setUser({ id: (data as any)?.id || (data as any)?.sub || undefined, email: data.email ?? email, role: (roleNorm as Role), permissions: Array.isArray(data.permissions) ? data.permissions : [] });
         setAuthPhase('auth');
         navigate('/home', { replace: true });
         return;
@@ -234,6 +235,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data: any = await apiMe();
         if (data) {
           setUser({
+            id: (data as any)?.id || (data as any)?.sub || undefined,
             email: (data as any).email ?? (mfa.email || ''),
             role: (data as any).role ? String((data as any).role).toLowerCase() as Role : (user?.role || 'user'),
             permissions: Array.isArray((data as any).permissions) ? (data as any).permissions : [],
