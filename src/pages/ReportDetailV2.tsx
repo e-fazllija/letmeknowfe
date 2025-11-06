@@ -546,7 +546,32 @@ export default function ReportDetailV2() {
                           <small className="text-muted">{a.mimeType} � {(a.sizeBytes/1024).toFixed(0)} KB � {(a as any).status ? String((a as any).status).toUpperCase() : "UPLOADED"}</small>
                         </div>
                         <div>
-                          <Button size="sm" variant="outline-secondary" disabled={String((a as any).status || "").toUpperCase() !== "CLEAN" && !ALLOW_UNSCANNED_DOWNLOAD} onClick={async () => { try { const blob = await dlAttachment(id, a.id); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = a.fileName || "attachment"; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); } catch { setToast({ show: true, message: "Download non riuscito", variant: "danger" }); } }}>Scarica</Button>
+                          <Button
+                            size="sm"
+                            variant="outline-secondary"
+                            disabled={
+                              ["CLEAN", "UPLOADED"].includes(String((a as any).status || "UPLOADED").toUpperCase())
+                                ? false
+                                : !ALLOW_UNSCANNED_DOWNLOAD
+                            }
+                            onClick={async () => {
+                              try {
+                                const blob = await dlAttachment(id, a.id);
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement("a");
+                                link.href = url;
+                                link.download = a.fileName || "attachment";
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove();
+                                URL.revokeObjectURL(url);
+                              } catch {
+                                setToast({ show: true, message: "Download non riuscito", variant: "danger" });
+                              }
+                            }}
+                          >
+                            Scarica
+                          </Button>
                         </div>
                       </ListGroup.Item>
                     ))}
