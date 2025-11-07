@@ -40,6 +40,26 @@ export async function finalizeAttachment(input: { storageKey: string; sizeBytes:
   if (!resp.ok) throw new Error(`finalize failed: ${resp.status}`);
 }
 
+// Finalize and ATTACH uploaded items to a specific report
+export async function finalizeAttachmentForReport(reportId: string, input: { storageKey: string; sizeBytes: number; fileName: string; mimeType: string; etag?: string | null; proof?: string }): Promise<void> {
+  const item: Record<string, any> = {
+    reportId,
+    storageKey: input.storageKey,
+    sizeBytes: input.sizeBytes,
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+    ...(input.etag ? { etag: input.etag } : {}),
+    ...(input.proof ? { hmac: input.proof } : {}),
+  };
+  const resp = await fetch(v1("tenant/reports/attachments/finalize"), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: [item] }),
+  });
+  if (!resp.ok) throw new Error(`finalize failed: ${resp.status}`);
+}
+
 // Upload client: PUT binario (headers firmati dal presign); ritorna ETag se presente
 export async function uploadPresigned(uploadUrl: string, file: File, headersIn?: Record<string,string>): Promise<string | null> {
   const headers = new Headers(headersIn || {});
@@ -48,4 +68,3 @@ export async function uploadPresigned(uploadUrl: string, file: File, headersIn?:
   if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
   try { return resp.headers.get('ETag') || resp.headers.get('etag'); } catch { return null; }
 }
-

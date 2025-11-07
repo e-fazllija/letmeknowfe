@@ -1,6 +1,6 @@
 // src/context/AuthContext.tsx
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { clearReportsLookupsCache } from "@/lib/api";
+import { clearReportsLookupsCache, saveMfaContext } from "@/lib/api";
 import { api as http, me as apiMe, refresh as apiRefresh, logout as apiLogout, completeMfa as apiCompleteMfa, login as apiLogin } from "@/api/api";
 import { useNavigate } from "react-router-dom";
 import { signupTenantUser } from "@/lib/auth";
@@ -194,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const out: any = await apiLogin(email.trim(), password);
       if (out?.mfaRequired) {
         const token = out?.mfaToken || null;
+        try { if (token) saveMfaContext({ token }); } catch {}
         setMfa({ required: true, token, email, tenantId: null });
         setAuthPhase('mfa');
         return;

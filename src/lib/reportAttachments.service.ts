@@ -46,3 +46,16 @@ export async function downloadAttachment(reportId: string, attachmentId: string)
   return res.data as Blob;
 }
 
+export async function attachToReport(
+  reportId: string,
+  attachments: Array<{ storageKey: string; fileName: string; mimeType: string; sizeBytes: number; etag?: string; hmac?: string }>
+): Promise<{ created: any[]; existing: string[]; rejected: Array<{ storageKey: string; reason?: string }> }>
+{
+  const { data } = await api.post(
+    v1(`tenant/reports/${encodeURIComponent(reportId)}/attachments`),
+    { attachments },
+    { withCredentials: true }
+  );
+  return (data as any) || { created: [], existing: [], rejected: [] };
+}
+

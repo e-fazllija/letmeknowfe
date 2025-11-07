@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { completeMfa } from "@/lib/mfa.service";
+import { useAuth } from "@/context/AuthContext";
 
 type FrontendRole = "admin" | "user" | "superhost";
 
@@ -23,6 +24,7 @@ export default function MfaCode() {
   const q = new URLSearchParams(useLocation().search);
   const mfaToken = q.get("token") || "";
   const navigate = useNavigate();
+  const { verifyOtp } = useAuth();
 
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,10 +38,6 @@ export default function MfaCode() {
 
     // validazione custom (evita blocchi del browser)
     const clean = (code || "").replace(/\D/g, "");
-    if (!mfaToken) {
-      setError("Token MFA mancante o scaduto. Rifai il login.");
-      return;
-    }
     if (clean.length !== 6) {
       setError("Inserisci un codice a 6 cifre.");
       return;
@@ -47,7 +45,17 @@ export default function MfaCode() {
 
     setLoading(true);
     try {
-      const res = await completeMfa(mfaToken || "", clean);
+      // Prova il flusso del Context: aggiorna stato globale e naviga
+      try {
+        if (verifyOtp) {
+          const okCtx = await verifyOtp(clean);
+          if (okCtx) return;
+        }
+      } catch { /* fallback sotto */ }
+      // Se il token non è passato via query, usa il fallback da sessionStorage
+      const res = mfaToken
+        ? await completeMfa(mfaToken, clean)
+        : await completeMfa(clean);
 
       const email =
         localStorage.getItem("lmw_user_email") ||

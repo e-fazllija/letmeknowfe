@@ -23,10 +23,10 @@ import {
   type ReportStatus,
   type Message,
 } from "@/lib/reports.v2.service";
-import { finalizeAttachment, presignAttachment, uploadPresigned } from "@/lib/attachments.service";
+import { uploadPresigned } from "@/lib/attachments.service";
 import { useUserResolver } from "@/lib/useUserResolver";
 import { stripSystemPrefix, buildUserIndex, replaceUserIds, systemSideLabel } from "@/lib/messages.format";
-import { listReportAttachments, downloadAttachment as dlAttachment } from "@/lib/reportAttachments.service";
+import { listReportAttachments, downloadAttachment as dlAttachment, presign as presignBatch, finalize as finalizeBatch, attachToReport } from "@/lib/reportAttachments.service";
 import UserSelect from "@/components/UserSelect";
 
 // Helpers risoluzione nomi reparto/categoria senza nuove chiamate
@@ -327,14 +327,48 @@ export default function ReportDetailV2() {
     }
     try {
       setUploading(true);
+      // 1) presign + PUT (per ogni file)
+      const toFinalize: Array<{ storageKey: string; fileName: string; mimeType: string; sizeBytes: number; etag?: string }> = [];
       for (const f of arr) {
-        const p = await presignAttachment({ fileName: f.name, mimeType: f.type || 'application/octet-stream', sizeBytes: f.size });
+        const items = await presignBatch([{ fileName: f.name, mimeType: f.type || 'application/octet-stream', sizeBytes: f.size }]);
+        const p = Array.isArray(items) ? items[0] : undefined;
+        if (!p) { continue; }
         const etag = await uploadPresigned(p.uploadUrl, f, p.headers);
-        await finalizeAttachment({ storageKey: p.storageKey, sizeBytes: f.size, fileName: f.name, mimeType: f.type || 'application/octet-stream', etag: etag || undefined, proof: p.proof });
+        toFinalize.push({ storageKey: p.storageKey, fileName: f.name, mimeType: f.type || 'application/octet-stream', sizeBytes: f.size, etag: etag || undefined });
       }
-      // Refresh lista allegati dopo upload
+      // 2) finalize TMP (batch)
+      const fin = await finalizeBatch(toFinalize as any);
+      const accepted = Array.isArray(fin?.accepted) ? fin.accepted : [];
+      const rejected = Array.isArray(fin?.rejected) ? fin.rejected : [];
+      if (rejected.length) {
+        try { setToast({ show: true, message: `Alcuni file rifiutati: ${rejected.map((r: any) => r?.reason || r?.storageKey || '?').join(', ')}`, variant: 'danger' }); } catch {}
+      }
+      // 3) attach-to-report solo per gli accepted
+      if (accepted.length) {
+        const byKey = new Map(toFinalize.map(it => [it.storageKey, it]));
+        const toAttach = accepted.map((a: any) => {
+          const k = a?.storageKey || a?.key;
+          const base = byKey.get(k) || {} as any;
+          return {
+            storageKey: k,
+            fileName: a?.fileName || base.fileName,
+            mimeType: a?.mimeType || base.mimeType,
+            sizeBytes: a?.sizeBytes || base.sizeBytes,
+            etag: a?.etag || base.etag,
+          };
+        });
+        try {
+          const res = await attachToReport(id, toAttach as any);
+          const createdN = (res?.created || []).length;
+          const existingN = (res?.existing || []).length;
+          if (createdN) setToast({ show: true, message: `Allegati collegati: ${createdN}`, variant: 'success' });
+          if (existingN) setToast({ show: true, message: `Già presenti: ${existingN}`, variant: 'primary' });
+        } catch {
+          setToast({ show: true, message: 'Errore collegamento allegati', variant: 'danger' });
+        }
+      }
+      // 4) Refresh lista allegati dopo upload
       try { const atts = await listReportAttachments(id) as any[]; setAttachments((Array.isArray(atts) ? atts : []) as AttachmentItem[]); } catch { /* ignore */ }
-      setToast({ show: true, message: 'Allegati caricati', variant: 'success' });
     } catch (e: any) {
       const s = e?.response?.status;
       if (s === 413) setToast({ show: true, message: 'Limiti allegati superati', variant: 'danger' });

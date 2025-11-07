@@ -2,8 +2,9 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/logo-transparent-light.png";
-import { login as apiLogin, completeMfa as apiCompleteMfa } from "@/api/api";
+import { completeMfa as apiCompleteMfa } from "@/api/api";
 import { mfaSetup, mfaVerify } from "@/lib/tenantAuth.service";
+import { useAuth } from "@/context/AuthContext";
 // import { refreshAccess } from "@/lib/api";
 
 type LocationState = { redirectTo?: string } | null;
@@ -12,6 +13,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const locState = (location.state as LocationState) || null;
+  const { login: ctxLogin, mfa: ctxMfa, authPhase } = useAuth();
 
   // Clean activation-related query params from /login to avoid refresh loops
   useEffect(() => {
@@ -95,34 +97,16 @@ export default function Login() {
     setMfaStep(false);
     setMfaToken("");
     try {
-      const data: any = await apiLogin(email.trim(), password);
-      // Nessun salvataggio tenant lato FE: header x-tenant-id solo in dev via env
-
-      // Caso richiesta MFA nel body (200/201)
+      await ctxLogin(email.trim(), password, remember);
+      // Se il Context entra in fase MFA, reindirizza alla pagina MFA dedicata
       try {
-        if ((data as any)?.mfaRequired) {
-          const token201 = (data as any)?.mfaToken || "";
-          setMfaToken(token201);
-          setMfaStep(true);
+        const needMfa = (ctxMfa?.required === true) || authPhase === 'mfa';
+        if (needMfa) {
+          navigate('/mfa/code', { replace: true });
           return;
         }
       } catch {}
-
-      // Caso MFA non segnalato via 428 ma via payload/header 2xx
-      // Nessun salvataggio del token in storage; cookie-first
-
-      // Setup MFA richiesto (prima configurazione) in risposta 2xx
-      if ((data as any)?.requireMfaSetup === true && (data as any)?.setupToken) { const st = String((data as any).setupToken || ''); setSetupToken(st); setSetupStep(true); return; }
-
-      // ? Success senza MFA
-      if (!data?.mfaRequired) {
-        const target = locState?.redirectTo || "/home";
-        navigate(target, { replace: true });
-        return;
-      }
-
-      // Fallback: risposta atipica
-      setError("Risposta inattesa dal server.");
+      // In caso di successo senza MFA, AuthContext gestisce già navigate('/home')
     } catch (err: any) {
   // Gestione SETUP MFA (428) inline
   if (err?.status === 428 || err?.response?.status === 428) {
