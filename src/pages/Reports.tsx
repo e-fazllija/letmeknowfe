@@ -184,7 +184,7 @@ export default function Reports() {
             aria-pressed={!isArchiveView}
             aria-label="Mostra tutte"
           >
-            Tutte
+            <span aria-hidden="true">📚</span>
           </button>
           <button
             type="button"
@@ -197,7 +197,7 @@ export default function Reports() {
             aria-pressed={isArchiveView}
             aria-label="Mostra archivio"
           >
-            Archivio
+            <span aria-hidden="true">🗃️</span>
           </button>
         </div>
       </div>
