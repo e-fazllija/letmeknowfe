@@ -1,4 +1,4 @@
-﻿// src/pages/Reports.tsx
+// src/pages/Reports.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Button, Table, Form, Spinner, Pagination, InputGroup } from "react-bootstrap";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -7,14 +7,13 @@ import { useDepartments } from "@/hooks/useDepartments";
 import { useCategories } from "@/hooks/useCategories";
 import { useDebounced } from "@/hooks/useDebounced";
 import { useArchive } from "@/lib/archive.service";
-import { STATUS_LABELS, statusToLabel } from "@/lib/status.labels";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Reports() {
   const navigate = useNavigate();
-  const { has, user } = useAuth();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
+  const { has, user } = useAuth();
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -25,24 +24,24 @@ export default function Reports() {
     categoryId: "",
   });
 
-  // Init from URL once
+  // 1) Init da URL (solo al mount)
   useEffect(() => {
-    const sp = new URLSearchParams(location.search);
+    const p = new URLSearchParams(location.search);
     setFilters((prev) => ({
       ...prev,
-      q: sp.get("search") || "",
-      status: sp.get("status") || "",
-      departmentId: sp.get("departmentId") || "",
-      categoryId: sp.get("categoryId") || "",
-      page: Math.max(1, Number(sp.get("page") || 1)),
-      pageSize: [10, 20, 50, 100].includes(Number(sp.get("pageSize") || 20))
-        ? Number(sp.get("pageSize") || 20)
+      q: p.get("search") || "",
+      status: p.get("status") || "",
+      departmentId: p.get("departmentId") || "",
+      categoryId: p.get("categoryId") || "",
+      page: Math.max(1, Number(p.get("page") || 1)),
+      pageSize: [10, 20, 50, 100].includes(Number(p.get("pageSize") || 20))
+        ? Number(p.get("pageSize") || 20)
         : 20,
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync filters to URL
+  // 2) Sync verso URL quando i filtri cambiano (replace, no loop)
   useEffect(() => {
     const p = new URLSearchParams();
     if (filters.q) p.set("search", filters.q);
@@ -51,15 +50,24 @@ export default function Reports() {
     if (filters.categoryId) p.set("categoryId", filters.categoryId);
     p.set("page", String(filters.page));
     p.set("pageSize", String(filters.pageSize));
-    const current = new URLSearchParams(location.search);
-    if (current.get("view") === "archive") p.set("view", "archive");
-    navigate({ pathname: "/reports", search: `?${p.toString()}` }, { replace: true });
-  }, [filters, navigate]);
 
+    // preserva la vista archivio se presente
+    if (params.get("view") === "archive") p.set("view", "archive");
+
+    const next = p.toString();
+    const current = location.search.startsWith("?") ? location.search.slice(1) : location.search;
+    if (next !== current) {
+      // evita navigazioni inutili che possono causare re-render in cascata
+      navigate({ pathname: "/reports", search: `?${next}` }, { replace: true });
+    }
+  }, [filters, navigate, location.search, params]);
+
+  // Dati di supporto
   const { departments } = useDepartments();
   const { categories } = useCategories(filters.departmentId || undefined);
   const qDebounced = useDebounced(filters.q, 300);
 
+  // Query report (lo scope 'me' per auditor lo decide il BE)
   const { reports, loading, error } = useReports({
     page: filters.page,
     pageSize: filters.pageSize,
@@ -67,15 +75,24 @@ export default function Reports() {
     status: filters.status || undefined,
     departmentId: filters.departmentId || undefined,
     categoryId: filters.categoryId || undefined,
-    // Auditor visibility:paramentro attuale corretto, per ora non torna nessun report
-    internalUserId: user?.role === "auditor" ? "me" : undefined,
+    assigned: user?.role === "auditor" ? "me" : undefined,
   } as any);
 
-  const deptName = useMemo(() => new Map(departments.map((d) => [d.id, d.name])), [departments]);
-  const categoryIndex = useMemo(
-    () => new Map((categories || []).map((c: any) => [String(c.id), String(c.name)])),
-    [categories]
+  const deptName = useMemo(
+    () => new Map((departments || []).map((d: any) => [d.id, d.name])),
+    [departments]
   );
+
+  const _catOpts: any[] = (categories || []) as any[];
+  const categoryIndex = useMemo(() => {
+    const map = new Map<string, string>();
+    _catOpts.forEach((c: any) => {
+      const id = c?.id ?? c?.value;
+      const name = c?.name ?? c?.label;
+      if (id && name) map.set(String(id), String(name));
+    });
+    return map;
+  }, [_catOpts]);
 
   function getCategoryLabel(row: any, idx: Map<string, string>) {
     return (
@@ -140,9 +157,11 @@ export default function Reports() {
           style={{ width: 180 }}
         >
           <option value="">Tutti gli stati</option>
-          {Object.entries(STATUS_LABELS).map(([val, label]) => (
-            <option key={val} value={val}>{label}</option>
-          ))}
+          <option value="OPEN">OPEN</option>
+          <option value="IN_PROGRESS">IN_PROGRESS</option>
+          <option value="SUSPENDED">SUSPENDED</option>
+          <option value="NEED_INFO">NEED_INFO</option>
+          <option value="CLOSED">CLOSED</option>
         </Form.Select>
 
         <Form.Select
@@ -151,7 +170,7 @@ export default function Reports() {
           style={{ width: 200 }}
         >
           <option value="">Tutti i reparti</option>
-          {departments.map((d) => (
+          {(departments || []).map((d: any) => (
             <option key={d.id} value={d.id}>
               {d.name}
             </option>
@@ -172,13 +191,15 @@ export default function Reports() {
           ))}
         </Form.Select>
 
+        {/* Toggle archivio / tutte */}
         <div className="ms-auto d-inline-flex align-items-center gap-2">
           <button
             type="button"
             className={`btn btn-sm ${!isArchiveView ? "btn-primary" : "btn-outline-primary"}`}
             onClick={() => {
-              params.delete("view");
-              setParams(params, { replace: true });
+              const p = new URLSearchParams(location.search);
+              p.delete("view");
+              setParams(p, { replace: true });
             }}
             title="Mostra tutte"
             aria-pressed={!isArchiveView}
@@ -186,12 +207,14 @@ export default function Reports() {
           >
             Tutte
           </button>
+
           <button
             type="button"
             className={`btn btn-sm ${isArchiveView ? "btn-primary" : "btn-outline-primary"}`}
             onClick={() => {
-              params.set("view", "archive");
-              setParams(params, { replace: true });
+              const p = new URLSearchParams(location.search);
+              p.set("view", "archive");
+              setParams(p, { replace: true });
             }}
             title="Mostra archivio"
             aria-pressed={isArchiveView}
@@ -221,7 +244,7 @@ export default function Reports() {
               </td>
             </tr>
           )}
-          {visibleRows.map((r) => (
+          {visibleRows.map((r: any) => (
             <tr key={r.id}>
               <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : "-"}</td>
               <td>{deptName.get(r.departmentId || "") || "-"}</td>
@@ -239,13 +262,18 @@ export default function Reports() {
                       : "bg-secondary"
                   }`}
                 >
-                  {statusToLabel(r.status)}
+                  {r.status}
                 </span>
               </td>
               <td>
-                <Button size="sm" variant="dark" onClick={() => navigate(`/reports/${encodeURIComponent(r.id)}`)}>
+                <Button
+                  size="sm"
+                  variant="dark"
+                  onClick={() => navigate(`/reports/${encodeURIComponent(r.id)}`)}
+                >
                   Apri
                 </Button>
+
                 {isArchiveView ? (
                   <Button
                     size="sm"
@@ -266,7 +294,7 @@ export default function Reports() {
                       archive(r.id);
                     }}
                     disabled={isArchived(r.id)}
-                    title={isArchived(r.id) ? "Gia' in archivio" : "Sposta in archivio"}
+                    title={isArchived(r.id) ? "Già in archivio" : "Sposta in archivio"}
                   >
                     Archivia
                   </Button>
@@ -288,7 +316,7 @@ export default function Reports() {
           />
           <Pagination.Item active>{filters.page}</Pagination.Item>
           <Pagination.Next
-            disabled={(reports?.length || 0) < filters.pageSize}
+            disabled={(rows?.length || 0) < filters.pageSize}
             onClick={() => setFilters((p) => ({ ...p, page: p.page + 1 }))}
           />
         </Pagination>
@@ -296,6 +324,3 @@ export default function Reports() {
     </div>
   );
 }
-
-
-

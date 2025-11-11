@@ -38,7 +38,7 @@ api.interceptors.request.use((cfg) => {
   );
 
   const isTenantMutating = (() => {
-    if (!(method === 'post' || method === 'patch')) return false;
+    if (!(method === 'post' || method === 'patch' || method === 'delete' || method === 'put')) return false;
     const p = path;
     if (p.endsWith('/tenant/reports/message')) return true; // POST message
     if (/\/tenant\/reports\/[^/]+\/status(\?|$)/.test(p)) return true; // PATCH status
@@ -46,6 +46,10 @@ api.interceptors.request.use((cfg) => {
     if (/\/tenant\/reports\/[^/]+\/assign(\?|$)/.test(p)) return true; // POST assign
     if (/\/tenant\/reports\/[^/]+\/unassign(\?|$)/.test(p)) return true; // POST unassign
     if (/\/tenant\/reports\/[^/]+\/message\/[^/]+\/(note|body)(\?|$)/.test(p)) return true; // PATCH note/body
+    if (/\/tenant\/reports\/[^/]+\/take(\?|$)/.test(p)) return true; // POST take
+    if (/\/tenant\/reports\/[^/]+\/auditors(\?|$)/.test(p)) return true; // assign/unassign auditor
+    if (/\/tenant\/reports\/[^/]+\/my-note(\?|$)/.test(p)) return true; // PUT/DELETE my-note
+    if (/\/tenant\/reports\/[^/]+\/attachments(\?|$)/.test(p)) return true; // POST attach-to-report
     return false;
   })();
 

@@ -68,9 +68,9 @@ const res = await signupPublicClient(payload);
       // 3) Messaggio finale (senza ID)
       setOkMsg(
         `In attesa di verifica della mail.\n\n` +
-          `Abbiamo inviato un link di attivazione allâ€™indirizzo: ${form.contactEmail}.\n` +
-          `Apri la mail e segui il link: lâ€™app completerÃ  lâ€™attivazione usando la password che hai impostato ora.\n` +
-          `Dopo lâ€™attivazione, al primo accesso ti verrÃ  richiesto un codice di verifica a 6 cifre (OTP) inviato via email.`
+          `Abbiamo inviato un link di attivazione all'indirizzo: ${form.contactEmail}.\n` +
+          `Apri la mail e segui il link: l'app completerÃ  l'attivazione usando la password che hai impostato ora.\n` +
+          `Dopo l'attivazione, al primo accesso ti verrÃ  richiesto un codice di verifica a 6 cifre (OTP) inviato via email.`
       );
     } catch (e: any) {
       const status = e?.response?.status;
@@ -80,13 +80,13 @@ const res = await signupPublicClient(payload);
         e?.message ||
         "";
 
-      // 409 â†’ registrazione giÃ  avviata/non completata
+      // 409  registrazione già  avviata/non completata
       if (status === 409) {
         
         setOkMsg(
-          `Registrazione giÃ  avviata.\n` +
+          `Registrazione già  avviata.\n` +
             `Abbiamo inviato (o reinviato) il link di attivazione a ${form.contactEmail}.\n` +
-            `Quando aprirai il link, useremo la password inserita qui per completare lâ€™attivazione.`
+            `Quando aprirai il link, useremo la password inserita qui per completare l'attivazione.`
         );
       } else {
         setErrMsg(String(msg || "Errore durante la registrazione"));

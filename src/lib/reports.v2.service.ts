@@ -133,3 +133,20 @@ export async function patchMessageNote(reportId: string, messageId: string, note
 export async function patchMessageBody(reportId: string, messageId: string, body: string): Promise<void> {
   await api.patch(v1(`tenant/reports/${encodeURIComponent(reportId)}/message/${encodeURIComponent(messageId)}/body`), { body }, { withCredentials: true });
 }
+
+export async function assignAuditor(reportId: string, auditorId: string): Promise<{ message?: string }> {
+  const { data } = await api.post(
+    v1(`tenant/reports/${encodeURIComponent(reportId)}/auditors`),
+    { auditorId },
+    { withCredentials: true }
+  );
+  return (data as any) || { message: 'AUDITOR_ASSIGNED' };
+}
+
+export async function unassignAuditor(reportId: string, auditorId: string): Promise<{ message?: string }> {
+  const { data } = await api.delete(
+    v1(`tenant/reports/${encodeURIComponent(reportId)}/auditors`),
+    { data: { auditorId }, withCredentials: true } as any
+  );
+  return (data as any) || { message: 'AUDITOR_UNASSIGNED' };
+}

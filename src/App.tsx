@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { PrivateLayout } from "./layouts/PrivateLayout";
+import AuditorGuard from "@/router/guards/auditorGuard";
 
 import type { ReactNode } from "react";
 import type { Permission } from "./context/AuthContext";
@@ -80,7 +81,7 @@ export default function App() {
           </Route>
 
           {/* --- Area PRIVATA --- */}
-          <Route element={<ProtectedRoute><PrivateLayout /></ProtectedRoute>}>
+          <Route element={<ProtectedRoute><AuditorGuard><PrivateLayout /></AuditorGuard></ProtectedRoute>}>
             <Route path="/home" element={<Home />} />
             <Route path="/new-report" element={<RequirePermission perm="REPORT_CREATE"><NewReport /></RequirePermission>} />
             <Route path="/new" element={<RequirePermission perm="REPORT_CREATE"><NewReport /></RequirePermission>} />

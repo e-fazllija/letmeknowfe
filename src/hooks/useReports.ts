@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import api, { v1 } from "@/lib/api";
 
 const compactParams = (obj: Record<string, unknown>) =>
-  Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== "" && v !== null && v !== undefined));
+  Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== "" && v !== null && v !== undefined)
+  );
 
 export interface Report {
   id: string;
@@ -20,6 +22,14 @@ export function useReports(filters: {
   departmentId?: string;
   categoryId?: string;
   q?: string;
+  // Compatibility knobs for BE filters
+  assigned?: string; // legacy: assignee agent filter (will be ignored for auditors)
+  auditor?: string;  // new: filter reports by auditor (e.g., 'me')
+  assignee?: string | string[]; // alternative naming some BE use
+  auditorId?: string; // some BE expect auditorId parameter
+  internalUserId?: string; // some BE expose assignee as internalUserId
+  assignedToUserId?: string; // other alias found in detail
+  assignedTo?: string; // generic alias
 }) {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,8 +47,17 @@ export function useReports(filters: {
           status: filters.status || undefined,
           departmentId: filters.departmentId || undefined,
           categoryId: filters.categoryId || undefined,
-          q: (filters.q || '').trim() || undefined,
+          q: (filters.q || "").trim() || undefined,
+          // Prefer auditor filter if provided; include common aliases for BE compatibility
+          auditor: (filters.auditor || "").trim() || undefined,
+          assigned: (filters.assigned || "").trim() || undefined,
+          assignee: filters.assignee ?? undefined,
+          auditorId: (filters.auditorId || "").trim() || undefined,
+          internalUserId: (filters.internalUserId || "").trim() || undefined,
+          assignedToUserId: (filters.assignedToUserId || "").trim() || undefined,
+          assignedTo: (filters.assignedTo || "").trim() || undefined,
         });
+        try { if (import.meta.env.DEV) console.debug('[useReports] params =', params); } catch {}
         const res = await api.get(v1("tenant/reports"), {
           params,
           withCredentials: true,
@@ -47,12 +66,13 @@ export function useReports(filters: {
         setReports(Array.isArray(res.data) ? (res.data as Report[]) : []);
       } catch (err: any) {
         if (!alive) return;
-        setError(err?.response?.data?.message || err?.message || "Errore caricamento segnalazioni");
+        setError(
+          err?.response?.data?.message || err?.message || "Errore caricamento segnalazioni"
+        );
       } finally {
         if (alive) setLoading(false);
       }
     })();
-    // stringify filters to trigger when deep-equal changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(filters)]);
 

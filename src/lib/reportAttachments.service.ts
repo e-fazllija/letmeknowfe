@@ -40,9 +40,10 @@ export async function listReportAttachments(reportId: string) {
 }
 
 export async function downloadAttachment(reportId: string, attachmentId: string) {
-  const res = await api.get(v1(`tenant/reports/${encodeURIComponent(reportId)}/attachments/${encodeURIComponent(attachmentId)}/download`), {
-    responseType: 'blob',
-  });
+  const res = await api.get(
+    v1(`tenant/reports/${encodeURIComponent(reportId)}/attachments/${encodeURIComponent(attachmentId)}/download`),
+    { responseType: 'blob' }
+  );
   return res.data as Blob;
 }
 
@@ -59,3 +60,19 @@ export async function attachToReport(
   return (data as any) || { created: [], existing: [], rejected: [] };
 }
 
+/** Auditor preview endpoint: no-store, cookie-first. */
+export async function previewAttachment(reportId: string, attachmentId: string): Promise<Blob> {
+  const url = v1(`tenant/reports/${encodeURIComponent(reportId)}/attachments/${encodeURIComponent(attachmentId)}/preview`);
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    headers: { 'Accept': 'image/*,application/pdf', 'Cache-Control': 'no-store', 'Pragma': 'no-cache' },
+  });
+  if (!res.ok) {
+    const e: any = new Error('Preview failed');
+    e.status = res.status;
+    throw e;
+  }
+  return await res.blob();
+}

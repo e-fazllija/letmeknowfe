@@ -5,10 +5,17 @@ import { api as http, me as apiMe, refresh as apiRefresh, logout as apiLogout, c
 import { useNavigate } from "react-router-dom";
 import { signupTenantUser } from "@/lib/auth";
 
-export type Role = "admin" | "agent" | "user" | "superhost";
-export type Permission = "REPORTS_VIEW" | "REPORT_CREATE" | "REPORTS_MANAGE" | "SETTINGS_ADMIN";
+export type Role = "admin" | "agent" | "user" | "superhost" | "auditor";
+export type Permission =
+  | "REPORTS_VIEW"
+  | "REPORT_CREATE"
+  | "REPORTS_MANAGE"
+  | "SETTINGS_ADMIN"
+  | "REPORTS_READ_MESSAGES"
+  | "REPORTS_READ_LOGS"
+  | "ATTACHMENTS_PREVIEW";
 
-type User = { id?: string; email: string; role: Role; permissions?: Permission[] };
+export type User = { id?: string; email: string; role: Role; permissions?: Permission[] };
 
 // Fase corrente dell'autenticazione
 type AuthPhase = 'anon' | 'login' | 'mfa' | 'auth';
@@ -50,8 +57,11 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   superhost: ["REPORTS_VIEW", "REPORT_CREATE", "REPORTS_MANAGE"],
   admin:     ["REPORTS_VIEW", "REPORT_CREATE", "REPORTS_MANAGE"],
   agent:     ["REPORTS_VIEW"],
+  auditor:   ["REPORTS_VIEW", "REPORTS_READ_MESSAGES", "REPORTS_READ_LOGS", "ATTACHMENTS_PREVIEW"],
   user:      ["REPORTS_VIEW", "REPORTS_MANAGE"],
 };
+
+export const isAuditor = (me?: User | null) => (me?.role === 'auditor');
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -59,6 +69,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authPhase, setAuthPhase] = useState<AuthPhase>('anon');
   const [ready, setReady] = useState(false);
   const navigate = useNavigate();
+
+  // Estrae l'ID utente da /me in modo tollerante
+  function resolveUserId(data: any): string | undefined {
+    try {
+      const id = (data?.id ?? data?.sub ?? data?.userId ?? data?.uid ?? data?.internalUserId ?? data?.user_id);
+      return id ? String(id) : undefined;
+    } catch { return undefined; }
+  }
 
   // Bootstrap live: refresh() + /me (cookie-first)
   useEffect(() => {
@@ -69,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data) {
           const roleNorm = data.role ? String(data.role).toLowerCase() as Role : undefined;
           const next: User = {
-            id: (data as any)?.id || (data as any)?.sub || undefined,
+            id: resolveUserId(data),
             email: data.email ?? "",
             role: (roleNorm as Role) ?? ("user" as Role),
             permissions: Array.isArray(data.permissions) ? data.permissions : [],
@@ -162,6 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data) {
           const roleNorm = data.role ? String(data.role).toLowerCase() as Role : null;
           setUser({
+            id: resolveUserId(data),
             email: data.email ?? (user?.email || null),
             role: (roleNorm as any) ?? (user?.role || null),
             permissions: Array.isArray(data.permissions) ? data.permissions : [],
@@ -202,7 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data: any = await apiMe();
       if (data) {
         const roleNorm = data.role ? String(data.role).toLowerCase() as Role : 'user';
-        setUser({ id: (data as any)?.id || (data as any)?.sub || undefined, email: data.email ?? email, role: (roleNorm as Role), permissions: Array.isArray(data.permissions) ? data.permissions : [] });
+        setUser({ id: resolveUserId(data), email: data.email ?? email, role: (roleNorm as Role), permissions: Array.isArray(data.permissions) ? data.permissions : [] });
         setAuthPhase('auth');
         navigate('/home', { replace: true });
         return;
@@ -236,11 +255,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data: any = await apiMe();
         if (data) {
           setUser({
-            id: (data as any)?.id || (data as any)?.sub || undefined,
+            id: resolveUserId(data),
             email: (data as any).email ?? (mfa.email || ''),
             role: (data as any).role ? String((data as any).role).toLowerCase() as Role : (user?.role || 'user'),
             permissions: Array.isArray((data as any).permissions) ? (data as any).permissions : [],
-          });
+          } as any);
         }
       } catch {}
       setAuthPhase('auth');

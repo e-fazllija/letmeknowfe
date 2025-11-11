@@ -188,6 +188,7 @@ export default function NewReport() {
           departmentId: payload.departmentId,
           categoryId: payload.categoryId,
           description: payload.summary,
+          privacy: prv,
           ...(prv === "CONFIDENZIALE" && String(data.name ?? "").trim() ? { reporterName: String(data.name ?? "").trim() } : {}),
           attachments,
         });
@@ -295,7 +296,7 @@ export default function NewReport() {
                   <Form.Label>Reparto</Form.Label>
                   {loadingDeps ? (
                     <div className="form-control d-flex align-items-center" style={{ height: 38 }}>
-                      <Spinner size="sm" className="me-2" /> Caricamentoâ€¦
+                      <Spinner size="sm" className="me-2" /> Caricamento¦
                     </div>
                   ) : (
                     <Form.Select
@@ -331,7 +332,7 @@ export default function NewReport() {
                   <Form.Label>Categoria</Form.Label>
                   {loadingCats ? (
                     <div className="form-control d-flex align-items-center" style={{ height: 38 }}>
-                      <Spinner size="sm" className="me-2" /> Caricamentoâ€¦
+                      <Spinner size="sm" className="me-2" /> Caricamento¦
                     </div>
                   ) : (
                     <Form.Select isInvalid={!!errors.category} disabled={!categories.length} {...register("category", { required: true })} defaultValue="">
