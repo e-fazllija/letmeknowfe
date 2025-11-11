@@ -54,8 +54,10 @@ export default function SettingsUsersTab() {
 
   const onDeactivateUser = async (u: TenantUser) => {
     if (!u?.id) return;
-    if (String(u.role || '').toUpperCase() !== 'AGENT') {
-      setToast({ show: true, message: 'Puoi disattivare solo utenti AGENT', variant: 'danger' });
+    const roleUp = String(u.role || '').toUpperCase();
+    const manageable = roleUp === 'AGENT' || roleUp === 'AUDITOR';
+    if (!manageable) {
+      setToast({ show: true, message: 'Puoi disattivare solo utenti AGENT o AUDITOR', variant: 'danger' });
       return;
     }
     const ok = confirm(`Disattivare l'utente ${u.email || u.id}?`);
@@ -74,8 +76,10 @@ export default function SettingsUsersTab() {
 
   const onHardDeleteUser = async (u: TenantUser) => {
     if (!u?.id) return;
-    if (String(u.role || '').toUpperCase() !== 'AGENT') {
-      setToast({ show: true, message: 'Puoi eliminare solo utenti AGENT', variant: 'danger' });
+    const roleUp = String(u.role || '').toUpperCase();
+    const manageable = roleUp === 'AGENT' || roleUp === 'AUDITOR';
+    if (!manageable) {
+      setToast({ show: true, message: 'Puoi eliminare solo utenti AGENT o AUDITOR', variant: 'danger' });
       return;
     }
     const ok = confirm(`Eliminare definitivamente l'utente ${u.email || u.id}? Operazione irreversibile.`);
@@ -155,7 +159,7 @@ export default function SettingsUsersTab() {
                 </td>
                 <td className="text-nowrap">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : <span className="text-muted">—</span>}</td>
                 <td className="text-nowrap">
-                  {String(u.role || '').toUpperCase() === 'AGENT' ? (
+                  {['AGENT','AUDITOR'].includes(String(u.role || '').toUpperCase()) ? (
                     <div className="d-flex gap-2 justify-content-nowrap">
                       <Button size="sm" variant="warning" onClick={() => onDeactivateUser(u)} disabled={deletingId === u.id}>
                         {deletingId === u.id ? <Spinner size="sm" animation="border" /> : 'Disattiva'}

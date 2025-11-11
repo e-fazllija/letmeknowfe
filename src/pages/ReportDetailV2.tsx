@@ -71,6 +71,7 @@ export default function ReportDetailV2() {
   const [assignBusy, setAssignBusy] = useState(false);
   const [loadingTake, setLoadingTake] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewBlob, setPreviewBlob] = useState<Blob | undefined>(undefined);
@@ -209,36 +210,47 @@ export default function ReportDetailV2() {
   }
 
 
-  async function onFilesSelected(files: FileList | null) {
+  function onFilesSelected(files: FileList | null) {
     if (!files || !files.length) return;
-    const arr = Array.from(files);
+    const incoming = Array.from(files);
     const MAX_FILES = Number(import.meta.env.VITE_ATTACH_MAX_FILES || 3);
     const MAX_MB = Number(import.meta.env.VITE_ATTACH_MAX_FILE_MB || 10);
     const MAX_TOTAL_MB = Number(import.meta.env.VITE_ATTACH_MAX_TOTAL_MB || 20);
     const ALLOWED = ["image/png","image/jpeg","application/pdf","text/plain","audio/mpeg","audio/wav"];
-    if (arr.length > MAX_FILES) { setToast({ show: true, message: `Limiti: max ${MAX_FILES} file`, variant: "danger" }); return; }
-    const total = arr.reduce((s,f)=>s+f.size,0);
-    if (total > MAX_TOTAL_MB*1024*1024 || arr.some(f => f.size > MAX_MB*1024*1024)) { setToast({ show: true, message: "Limiti: max 3 file, 10 MB ciascuno, 20 MB totali; tipi consentiti: png/jpeg/pdf/txt/mp3/wav.", variant: "danger" }); return; }
-    if (arr.some(f => !ALLOWED.includes(f.type || ""))) { setToast({ show: true, message: "Tipo file non consentito", variant: "danger" }); return; }
+    const next = [...pendingFiles, ...incoming];
+    const total = next.reduce((s,f)=>s+f.size,0);
+    if (next.length > MAX_FILES) { setToast({ show: true, message: `Limiti: max ${MAX_FILES} file`, variant: "danger" }); return; }
+    if (total > MAX_TOTAL_MB*1024*1024 || next.some(f => f.size > MAX_MB*1024*1024)) { setToast({ show: true, message: "Limiti: max 3 file, 10 MB ciascuno, 20 MB totali; tipi consentiti: png/jpeg/pdf/txt/mp3/wav.", variant: "danger" }); return; }
+    if (incoming.some(f => !ALLOWED.includes(f.type || ""))) { setToast({ show: true, message: "Tipo file non consentito", variant: "danger" }); return; }
+    setPendingFiles(next);
+  }
+
+  async function savePendingAttachments() {
+    if (!pendingFiles.length) return;
     try {
       setUploading(true);
       const toFinalize: Array<{ storageKey: string; fileName: string; mimeType: string; sizeBytes: number; etag?: string }> = [];
-      for (const f of arr) {
+      for (const f of pendingFiles) {
         const items = await presignBatch([{ fileName: f.name, mimeType: f.type || "application/octet-stream", sizeBytes: f.size }]);
         const p = Array.isArray(items) ? items[0] : undefined; if (!p) continue;
-        const etag = await uploadPresigned(p.uploadUrl, f, p.headers); toFinalize.push({ storageKey: p.storageKey, fileName: f.name, mimeType: f.type || "application/octet-stream", sizeBytes: f.size, etag: etag || undefined });
+        const etag = await uploadPresigned(p.uploadUrl, f, p.headers);
+        toFinalize.push({ storageKey: p.storageKey, fileName: f.name, mimeType: f.type || "application/octet-stream", sizeBytes: f.size, etag: etag || undefined });
       }
       const fin = await finalizeBatch(toFinalize as any);
       const accepted = Array.isArray(fin?.accepted) ? fin.accepted : toFinalize.map(i => ({ storageKey: i.storageKey }));
       if (accepted.length) {
         const byKey = new Map(toFinalize.map(it => [it.storageKey, it]));
         const toAttach = accepted.map((a: any) => { const k = a?.storageKey || a?.key; const base = byKey.get(k) || ({} as any); return { storageKey: k, fileName: a?.fileName || base.fileName, mimeType: a?.mimeType || base.mimeType, sizeBytes: a?.sizeBytes || base.sizeBytes, etag: a?.etag || base.etag }; });
-        try { await attachToReport(id, toAttach as any); setToast({ show: true, message: `Allegati collegati: ${toAttach.length}`, variant: "success" }); } catch { setToast({ show: true, message: "Errore collegamento allegati", variant: "danger" }); }
+        try { await attachToReport(id, toAttach as any); setToast({ show: true, message: `Allegati collegati: ${toAttach.length}`, variant: "success" }); setPendingFiles([]); } catch { setToast({ show: true, message: "Errore collegamento allegati", variant: "danger" }); }
       }
       try { const atts = await listReportAttachments(id) as any[]; setAttachments((Array.isArray(atts) ? atts : []) as AttachmentItem[]); } catch {}
     } catch (e: any) {
       const s = e?.response?.status; if (s === 413) setToast({ show: true, message: "Limiti allegati superati", variant: "danger" }); else setToast({ show: true, message: "Errore di connessione. Riprova.", variant: "danger" });
     } finally { setUploading(false); }
+  }
+
+  function removePendingAt(idx: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== idx));
   }
 
   if (loading) return (<div className="container py-4 d-flex align-items-center" style={{ gap: 8 }}><Spinner animation="border" size="sm" /><span>Caricamento¦</span></div>);
@@ -284,9 +296,14 @@ export default function ReportDetailV2() {
                     <div>
                       <Form.Label className="fw-semibold mb-1">Stato</Form.Label>
                       <Form.Select size="sm" style={{ minWidth: 200 }} disabled={statusBusy || !canOperate} {...regStatus('status')}>
-                        {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                          <option key={val} value={val}>{label}</option>
-                        ))}
+                        {Object.entries(STATUS_LABELS).map(([val, label]) => {
+                          if (hasAssignee && val === 'OPEN') {
+                            return (String(status).toUpperCase() === 'OPEN')
+                              ? <option key={val} value={val} disabled>{label}</option>
+                              : null;
+                          }
+                          return <option key={val} value={val}>{label}</option>;
+                        })}
                       </Form.Select>
                     </div>
                     <Button type="submit" size="sm" variant="dark" disabled={statusBusy || !canOperate || (String(watchStatus('status') || '') === status)}>Aggiorna</Button>
@@ -381,7 +398,28 @@ export default function ReportDetailV2() {
                   <Form.Group controlId="fileUpload">
                     <Form.Control type="file" multiple accept=".png,.jpg,.jpeg,.pdf,.txt,.mp3,.wav" disabled={uploading} onChange={(e) => onFilesSelected((e.currentTarget as HTMLInputElement).files)} />
                   </Form.Group>
-                  <small className="text-muted d-block mt-2">Max 3 file, 10MB ciascuno, 20MB totali</small>
+                  {!!pendingFiles.length && (
+                    <ListGroup className="mt-2">
+                      {pendingFiles.map((f, i) => (
+                        <ListGroup.Item key={`${f.name}-${i}`} className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <div className="fw-semibold text-truncate" style={{ maxWidth: 260 }}>{f.name}</div>
+                            <small className="text-muted">{(f.size/1024).toFixed(0)} KB • {(f.type || 'application/octet-stream')}</small>
+                          </div>
+                          <div className="d-flex gap-2">
+                            <Button size="sm" variant="outline-danger" onClick={() => removePendingAt(i)}>Rimuovi</Button>
+                          </div>
+                        </ListGroup.Item>
+                      ))}
+                    </ListGroup>
+                  )}
+                  <div className="d-flex justify-content-between align-items-center mt-2">
+                    <small className="text-muted">Max 3 file, 10MB ciascuno, 20MB totali</small>
+                    <div className="d-flex gap-2">
+                      <Button size="sm" variant="outline-secondary" disabled={uploading || pendingFiles.length === 0} onClick={() => setPendingFiles([])}>Svuota</Button>
+                      <Button size="sm" variant="dark" disabled={uploading || pendingFiles.length === 0} onClick={savePendingAttachments}>{uploading ? '...' : 'Salva'}</Button>
+                    </div>
+                  </div>
                 </div>
               )}
               <div>
