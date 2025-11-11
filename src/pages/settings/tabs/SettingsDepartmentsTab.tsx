@@ -28,8 +28,20 @@ export default function SettingsDepartmentsTab() {
               <ListGroup.Item key={d.id} className="d-flex justify-content-between align-items-center">
                 <div>{d.name}</div>
                 <div className="d-flex gap-2">
-                  <Button size="sm" variant="outline-secondary" onClick={() => setModal({ show: true, item: d })}>Modifica</Button>
-                  <Button size="sm" variant="outline-danger" onClick={async () => { if (!confirm('Eliminare il reparto?')) return; try { await deleteDepartment(d.id); setToast({ show: true, message: 'Reparto eliminato', variant: 'success' }); load(); } catch { setToast({ show: true, message: 'Errore eliminazione', variant: 'danger' }); } }}>Elimina</Button>
+                  {(() => {
+                    type Protectable = { builtin?: boolean; builtIn?: boolean; system?: boolean; readOnly?: boolean; readonly?: boolean; protected?: boolean; isDefault?: boolean; createdBy?: string | null };
+                    const o = d as unknown as Protectable;
+                    const truthy = (v: any) => v === true || v === 'true' || v === 1 || v === '1';
+                    const isProtected = truthy(o?.builtin) || truthy(o?.builtIn) || truthy(o?.system) || truthy(o?.readOnly) || truthy(o?.readonly) || truthy(o?.protected) || truthy(o?.isDefault);
+                    return !isProtected ? (
+                      <>
+                        <Button size="sm" variant="outline-secondary" onClick={() => setModal({ show: true, item: d })}>Modifica</Button>
+                        <Button size="sm" variant="outline-danger" onClick={async () => { if (!confirm('Eliminare il reparto?')) return; try { await deleteDepartment(d.id); setToast({ show: true, message: 'Reparto eliminato', variant: 'success' }); load(); } catch { setToast({ show: true, message: 'Errore eliminazione', variant: 'danger' }); } }}>Elimina</Button>
+                      </>
+                    ) : (
+                      <small className="text-muted">Predefinito</small>
+                    );
+                  })()}
                 </div>
               </ListGroup.Item>
             ))}
