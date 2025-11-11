@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, Form, ListGroup, Spinner, Toast, ToastContainer } from 'react-bootstrap';
 import { listCategories, listDepartments, createCategory, updateCategory, deleteCategory, type Category, type Department } from '@/lib/settings.service';
 import CategoryForm from '@/components/settings/CategoryForm';
+import { isCategoryHidden, setCategoryVisible } from '@/lib/visibility.prefs';
 
 export default function SettingsCategoriesTab() {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -38,12 +39,31 @@ export default function SettingsCategoriesTab() {
         items.length === 0 ? <div className="text-muted">Nessuna categoria.</div> : (
           <ListGroup>
             {items.map(c => (
-              <ListGroup.Item key={c.id} className="d-flex justify-content-between align-items-center">
-                <div>
-                  <div className="fw-semibold">{c.name}</div>
-                  <small className="text-muted">{depName.get(c.departmentId) || '-'}</small>
-                </div>
-                <div className="d-flex gap-2">
+              <ListGroup.Item key={c.id} className="py-2">
+                <div className="d-flex align-items-center" style={{ gap: 12 }}>
+                  <div className="flex-grow-1">
+                    <div className="fw-semibold">{c.name}</div>
+                    <small className="text-muted">{depName.get(c.departmentId) || '-'}</small>
+                  </div>
+                  <div className="flex-shrink-0" style={{ width: 120, whiteSpace: 'nowrap' }}>
+                  <Form.Check
+                    type="switch"
+                    id={`cat-visible-${c.id}`}
+                    label="Mostra"
+                    inline
+                    className="mb-0"
+                    checked={!isCategoryHidden(c.id)}
+                    onChange={(e) => {
+                      try {
+                        setCategoryVisible(c.id, e.currentTarget.checked);
+                        setToast({ show: true, message: e.currentTarget.checked ? 'Categoria visibile' : 'Categoria nascosta', variant: 'success' });
+                      } catch {
+                        setToast({ show: true, message: 'Errore aggiornamento visibilità', variant: 'danger' });
+                      }
+                    }}
+                  />
+                  </div>
+                  <div className="flex-shrink-0 d-flex gap-2" style={{ width: 220, justifyContent: 'flex-end' }}>
                   {(() => {
                     type Protectable = { builtin?: boolean; builtIn?: boolean; system?: boolean; readOnly?: boolean; readonly?: boolean; protected?: boolean; isDefault?: boolean; createdBy?: string | null };
                     const o = c as unknown as Protectable;
@@ -58,6 +78,7 @@ export default function SettingsCategoriesTab() {
                       <small className="text-muted">Predefinita</small>
                     );
                   })()}
+                  </div>
                 </div>
               </ListGroup.Item>
             ))}

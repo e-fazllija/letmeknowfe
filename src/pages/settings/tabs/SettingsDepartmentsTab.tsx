@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Button, ListGroup, Spinner, Toast, ToastContainer } from 'react-bootstrap';
+import { Button, ListGroup, Spinner, Toast, ToastContainer, Form } from 'react-bootstrap';
 import { listDepartments, createDepartment, updateDepartment, deleteDepartment, type Department } from '@/lib/settings.service';
 import DepartmentForm from '@/components/settings/DepartmentForm';
+import { isDepartmentHidden, setDepartmentVisible } from '@/lib/visibility.prefs';
 
 export default function SettingsDepartmentsTab() {
   const [items, setItems] = useState<Department[]>([]);
@@ -25,9 +26,26 @@ export default function SettingsDepartmentsTab() {
         items.length === 0 ? <div className="text-muted">Nessun reparto.</div> : (
           <ListGroup>
             {items.map(d => (
-              <ListGroup.Item key={d.id} className="d-flex justify-content-between align-items-center">
-                <div>{d.name}</div>
-                <div className="d-flex gap-2">
+              <ListGroup.Item key={d.id} className="py-2">
+                <div className="d-flex align-items-center" style={{ gap: 12 }}>
+                  <div className="flex-grow-1">{d.name}</div>
+                  <div className="flex-shrink-0" style={{ width: 120, whiteSpace: 'nowrap' }}>
+                  <Form.Check
+                    type="switch"
+                    id={`dep-visible-${d.id}`}
+                    label="Mostra"
+                    checked={!isDepartmentHidden(d.id)}
+                    onChange={(e) => {
+                      try {
+                        setDepartmentVisible(d.id, e.currentTarget.checked);
+                        setToast({ show: true, message: e.currentTarget.checked ? 'Reparto visibile' : 'Reparto nascosto', variant: 'success' });
+                      } catch {
+                        setToast({ show: true, message: 'Errore aggiornamento visibilità', variant: 'danger' });
+                      }
+                    }}
+                  />
+                  </div>
+                  <div className="flex-shrink-0 d-flex gap-2" style={{ width: 220, justifyContent: 'flex-end' }}>
                   {(() => {
                     type Protectable = { builtin?: boolean; builtIn?: boolean; system?: boolean; readOnly?: boolean; readonly?: boolean; protected?: boolean; isDefault?: boolean; createdBy?: string | null };
                     const o = d as unknown as Protectable;
@@ -42,6 +60,7 @@ export default function SettingsDepartmentsTab() {
                       <small className="text-muted">Predefinito</small>
                     );
                   })()}
+                </div>
                 </div>
               </ListGroup.Item>
             ))}

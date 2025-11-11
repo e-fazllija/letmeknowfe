@@ -1,4 +1,5 @@
 import api, { v1, getSavedTenantId } from "@/lib/api";
+import { getHiddenDepartmentIds, getHiddenCategoryIds } from "@/lib/visibility.prefs";
 
 export type Dept = { id: string; name: string; sortOrder?: number };
 export type Cat  = { id: string; name: string; departmentId?: string | null; sortOrder?: number };
@@ -39,7 +40,10 @@ export async function fetchDepartmentsPublic(): Promise<Dept[]> {
   const data = await resp.json();
   try { console.debug("[lookups] deps res.data =", data); } catch {}
   const arr = Array.isArray(data) ? data : data?.items ?? [];
-  return arr.map(adaptDepartment).filter((d: Dept) => d.id && d.name);
+  const hidden = getHiddenDepartmentIds();
+  return arr
+    .map(adaptDepartment)
+    .filter((d: Dept) => d.id && d.name && !hidden.has(String(d.id)));
 }
 
 export async function fetchCategoriesPublic(departmentId?: string): Promise<Cat[]> {
@@ -65,7 +69,10 @@ export async function fetchCategoriesPublic(departmentId?: string): Promise<Cat[
   const data = await resp.json();
   try { console.debug("[lookups] cats res.data =", data, "dept =", departmentId); } catch {}
   const arr = Array.isArray(data) ? data : data?.items ?? [];
-  return arr.map(adaptCategory).filter((c: Cat) => c.id && c.name);
+  const hidden = getHiddenCategoryIds();
+  return arr
+    .map(adaptCategory)
+    .filter((c: Cat) => c.id && c.name && !hidden.has(String(c.id)));
 }
 
 // ---------- Tenant lookups (cookie-first) ----------
@@ -73,7 +80,10 @@ export async function fetchDepartmentsTenant(): Promise<Dept[]> {
   const res = await api.get(v1("tenant/departments"), { withCredentials: true });
   try { console.debug("[lookups] deps res.data =", res.data); } catch {}
   const arr = Array.isArray(res.data) ? res.data : res.data?.items ?? [];
-  return arr.map(adaptDepartment).filter((d: Dept) => d.id && d.name);
+  const hidden = getHiddenDepartmentIds();
+  return arr
+    .map(adaptDepartment)
+    .filter((d: Dept) => d.id && d.name && !hidden.has(String(d.id)));
 }
 
 export async function fetchCategoriesTenant(departmentId?: string): Promise<Cat[]> {
@@ -83,7 +93,10 @@ export async function fetchCategoriesTenant(departmentId?: string): Promise<Cat[
   });
   try { console.debug("[lookups] cats res.data =", res.data, "dept =", departmentId); } catch {}
   const arr = Array.isArray(res.data) ? res.data : res.data?.items ?? [];
-  return arr.map(adaptCategory).filter((c: Cat) => c.id && c.name);
+  const hidden = getHiddenCategoryIds();
+  return arr
+    .map(adaptCategory)
+    .filter((c: Cat) => c.id && c.name && !hidden.has(String(c.id)));
 }
 
 // --- Compat: alias coerenti e default export ---
