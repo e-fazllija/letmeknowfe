@@ -25,12 +25,18 @@
 /* ===================== LOGO ===================== */
 .sidebar-logo{
   display: block;
-  width: 95%;
-  max-width: 360px;
+  width: 100%;
+  max-width: 100%;
   height: auto;
 }
-@media (max-width: 576px){
-  .sidebar-logo{ width: 80%; max-width: 260px; }
+/* The logo adapts to the sidebar width at all breakpoints */
+
+/* Compact brand logo (inline next to title) */
+.sidebar-brand-logo{
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 /* ===================== LINK MENU ===================== */
@@ -93,4 +99,3 @@
 /* ===================== UTILS ===================== */
 .container-narrow{ max-width: 860px; margin: 0 auto; }
 .dropzone{ border: 2px dashed #c7ccd1; padding: 12px; border-radius: .5rem; background: #f8f9fa; }
-

@@ -1,7 +1,7 @@
 export default function AnacInfo() {
   const ANAC_LINK = "https://www.anticorruzione.it/";
   return (
-    <div className="container-narrow">
+    <div className="container-fluid">
       <h3 className="mb-3">Canale esterno ANAC</h3>
       <ol>
         <li>Usare il canale ANAC quando i canali interni non sono appropriati.</li>
@@ -14,4 +14,3 @@ export default function AnacInfo() {
     </div>
   );
 }
-

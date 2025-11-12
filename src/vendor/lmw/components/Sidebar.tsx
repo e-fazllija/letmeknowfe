@@ -11,8 +11,12 @@ export default function Sidebar({ logoSrc, title = "LetMeKnow" }: Props) {
 
   return (
     <aside className="sidebar border-end">
-      <div className="d-flex justify-content-center align-items-center py-4 border-bottom">
-        <NavLink to="/new/text" className="text-decoration-none" title="Nuova segnalazione">
+      <div className="d-flex justify-content-start align-items-center py-4 border-bottom px-3">
+        <NavLink
+          to="/new/text"
+          className="text-decoration-none d-block w-100"
+          title="Nuova segnalazione"
+        >
           {logoSrc ? (
             <img src={logoSrc} alt={title} className="sidebar-logo" />
           ) : (
@@ -35,4 +39,3 @@ export default function Sidebar({ logoSrc, title = "LetMeKnow" }: Props) {
     </aside>
   );
 }
-

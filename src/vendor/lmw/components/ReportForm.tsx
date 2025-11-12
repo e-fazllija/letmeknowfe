@@ -250,7 +250,7 @@ export default function ReportForm() {
   };
 
   return (
-    <div className="container-narrow">
+    <div className="container-fluid">
       <h3 className="mb-3">Nuova segnalazione</h3>
 
       {warnings.length > 0 && (
@@ -264,7 +264,7 @@ export default function ReportForm() {
 
       <form onSubmit={onSubmit} className="vstack gap-3">
         <div className="row g-3">
-          <div className="col-md-6">
+          <div className="col-12">
             <label className="form-label">Data</label>
             <input type="date" className="form-control" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>

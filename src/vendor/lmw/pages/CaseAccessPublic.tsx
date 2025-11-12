@@ -94,7 +94,7 @@ export default function CaseAccessPublic() {
   };
 
   return (
-    <div className="container-narrow">
+    <div className="container-fluid">
       <h3 className="mb-3">Accedi alla pratica</h3>
       {error && <div className="alert alert-danger">{error}</div>}
       <form onSubmit={onSubmit} className="vstack gap-3 mb-3">
@@ -295,5 +295,4 @@ function mapError(err: any): string {
   }
   return err?.message || 'Errore imprevisto';
 }
-
 

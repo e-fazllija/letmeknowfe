@@ -8,18 +8,11 @@
 }
 
 .chat-bubble {
-  max-width: min(75%, 42rem);
+  max-width: 95%;
   word-wrap: break-word;
   overflow-wrap: anywhere;
-}
-
-@media (max-width: 576px) {
-  .chat-bubble {
-    max-width: 88%;
-  }
 }
 
 .chat-body {
   white-space: pre-wrap;
 }
-

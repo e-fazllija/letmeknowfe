@@ -5,6 +5,7 @@ import ReportForm from "./components/ReportForm";
 import PublicConfirm from "./pages/PublicConfirm";
 import CaseAccessPublic from "./pages/CaseAccessPublic";
 import AnacInfo from "./pages/AnacInfo";
+import logo from "./assets/logo-transparent-dark.png";
 
 // CSS
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -15,7 +16,7 @@ function Shell() {
     <div className="container-fluid">
       <div className="row">
         <div className="col-12 col-md-3 col-lg-2 p-0 sidebar-col">
-          <Sidebar />
+          <Sidebar logoSrc={logo} title="LetMeKnow" />
         </div>
         <main className="col-12 col-md-9 col-lg-10 p-4 bg-white">
           <Outlet />
@@ -49,4 +50,3 @@ export default function LmwWidgetApp() {
     </HashRouter>
   );
 }
-
