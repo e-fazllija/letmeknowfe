@@ -13,10 +13,6 @@ export default function PublicConfirm() {
   const secret = location.state?.secret;
   const [saved, setSaved] = useState(false);
   const [copyOk, setCopyOk] = useState<string | null>(null);
-  const DEV = (import.meta as any).env?.DEV;
-  const adminImportUrl = useMemo(() => {
-    try { return sessionStorage.getItem('lmw_admin_import_url') || ''; } catch { return ''; }
-  }, []);
 
   useEffect(() => {
     if (!publicCode || !secret) {
@@ -101,16 +97,6 @@ export default function PublicConfirm() {
       <div className="d-flex gap-2 flex-wrap">
         <Link to="/case/access" className="btn btn-dark">Accedi alla pratica</Link>
         <Link to="/" className="btn btn-outline-secondary">Torna alla home</Link>
-        {DEV && adminImportUrl && (
-          <button
-            type="button"
-            className="btn btn-outline-secondary"
-            onClick={() => window.open(adminImportUrl, '_blank', 'noopener,noreferrer')}
-            title="Apri l'URL di import in Admin (solo in sviluppo)"
-          >
-            Apri in Admin (dev)
-          </button>
-        )}
       </div>
     </div>
   );
