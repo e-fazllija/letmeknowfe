@@ -21,7 +21,18 @@ export type StatsResponse = {
 };
 export type Department = { id: string; name: string };
 export type Category = { id: string; name: string; departmentId: string };
-export type CasePolicy = { restrictVisibility: boolean; allowMentions: boolean; redactPii: boolean; allowAttachments: boolean };
+export type CasePolicy = {
+  // Sistema / info-only
+  restrictVisibility?: boolean;
+  allowMentions?: boolean; // legacy (non usato)
+  redactPii?: boolean;
+  allowAttachments?: boolean;
+
+  // Cataloghi modulo pubblico (configurabili)
+  publicShowGlobalLookups?: boolean;
+  publicShowTenantLookups?: boolean;
+  publicLookupPreference?: 'GLOBAL' | 'TENANT';
+};
 export type BillingProfile = { companyName: string; taxId: string; address: string; zip: string; city: string; province: string; country: string; billingEmail: string };
 export type Subscription = { plan: "BASIC"; cycle: "MENSILE" | "ANNUALE"; status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "EXPIRED"; startsAt?: string | null; nextBillingAt?: string | null };
 export type PaymentMethod = { type: "CARTA" | "BONIFICO"; masked: string };

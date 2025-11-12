@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Nav } from 'react-bootstrap';
 import { useAuth } from '@/context/AuthContext';
-import { FEATURE_SETTINGS } from '@/config';
+import { FEATURE_SETTINGS, FEATURE_TEMPLATES } from '@/config';
 import SettingsDepartmentsTab from '@/pages/settings/tabs/SettingsDepartmentsTab';
 import SettingsCategoriesTab from '@/pages/settings/tabs/SettingsCategoriesTab';
 import SettingsCasePolicyTab from '@/pages/settings/tabs/SettingsCasePolicyTab';
@@ -18,14 +18,17 @@ export default function SettingsPage() {
     try {
       const params = new URLSearchParams(window.location.search);
       const t = params.get('tab');
-      if (t) setTab(t);
+      if (t) {
+        if (t === 'templates' && !FEATURE_TEMPLATES) setTab('departments');
+        else setTab(t);
+      }
     } catch {}
   }, []);
 
   // URL sync optional: skipped to avoid hash-router conflicts
 
   if (!FEATURE_SETTINGS) return <div className="container py-4"><div className="alert alert-secondary">Impostazioni disabilitate.</div></div>;
-  if (!canSettings) return <div className="container py-4"><div className="alert alert-warning">Non autorizzato</div></div>;
+  if (!canSettings) return <div className="container py-4"><div className="alert alert-warning">403 — Non autorizzato</div></div>;
 
   const content = useMemo(() => {
     switch (tab) {
@@ -33,7 +36,7 @@ export default function SettingsPage() {
       case 'departments': return <SettingsDepartmentsTab />;
       case 'categories': return <SettingsCategoriesTab />;
       case 'policy': return <SettingsCasePolicyTab />;
-      case 'templates': return <SettingsTemplatesTab />;
+      case 'templates': return FEATURE_TEMPLATES ? <SettingsTemplatesTab /> : <SettingsDepartmentsTab/>;
       case 'billing': return <SettingsBillingTab />;
       default: return <SettingsDepartmentsTab />;
     }
@@ -48,8 +51,10 @@ export default function SettingsPage() {
         <Nav.Item><Nav.Link eventKey="users">Utenti</Nav.Link></Nav.Item>
         <Nav.Item><Nav.Link eventKey="departments">Reparti</Nav.Link></Nav.Item>
         <Nav.Item><Nav.Link eventKey="categories">Categorie</Nav.Link></Nav.Item>
-        <Nav.Item><Nav.Link eventKey="policy">Policy dei casi</Nav.Link></Nav.Item>
-        <Nav.Item><Nav.Link eventKey="templates">Template</Nav.Link></Nav.Item>
+        <Nav.Item><Nav.Link eventKey="policy">Policy &amp; Info</Nav.Link></Nav.Item>
+        {FEATURE_TEMPLATES && (
+          <Nav.Item><Nav.Link eventKey="templates">Template</Nav.Link></Nav.Item>
+        )}
         <Nav.Item><Nav.Link eventKey="billing">Fatturazione</Nav.Link></Nav.Item>
       </Nav>
       {content}

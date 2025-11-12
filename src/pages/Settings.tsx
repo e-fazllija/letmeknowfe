@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Tabs, Tab } from "react-bootstrap";
 import { useAuth } from "../context/AuthContext";
+import { FEATURE_TEMPLATES } from "../config";
 
 // USER tabs (rimangono solo queste)
 import MyAccount from "../components/settings/MyAccount";
@@ -25,7 +26,10 @@ export default function Settings() {
   useEffect(() => {
     const url = new URL(window.location.href);
     const tab = url.searchParams.get("tab");
-    if (tab) setActiveKey(tab);
+    if (tab) {
+      if (tab === 'templates' && !FEATURE_TEMPLATES) setActiveKey('account');
+      else setActiveKey(tab);
+    }
   }, []);
 
   // Tab comuni (user)
@@ -42,7 +46,7 @@ export default function Settings() {
         { key: "teams", title: "Reparti", node: <Departments /> },
         { key: "categories", title: "Categorie", node: <Categories /> },
         { key: "case", title: "Gestione del caso", node: <CasePolicy /> },
-        { key: "templates", title: "Modelli", node: <Templates /> },
+        ...(FEATURE_TEMPLATES ? [{ key: "templates", title: "Modelli", node: <Templates /> }] : []),
         { key: "billing", title: "Fatturazione", node: <Billing /> },
       ]
     : [];
