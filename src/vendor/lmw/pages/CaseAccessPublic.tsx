@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getPublicReportStatus,
@@ -37,9 +37,11 @@ export default function CaseAccessPublic() {
   const [sending, setSending] = useState(false);
   const [voiceFile, setVoiceFile] = useState<File | Blob | null>(null);
   const [voiceInclude, setVoiceInclude] = useState<boolean>(false);
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(false);
   const [showValidationAccess, setShowValidationAccess] = useState(false);
   const [showValidationReply, setShowValidationReply] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const chatBoxRef = useRef<HTMLDivElement | null>(null);
   // ripristina da sessionStorage
   useEffect(() => {
     try {
@@ -64,6 +66,14 @@ export default function CaseAccessPublic() {
       }
     } catch {}
   }, []);
+
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    try {
+      const el = chatBoxRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    } catch {}
+  }, [report?.messages?.length]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,8 +135,9 @@ export default function CaseAccessPublic() {
             <span className="badge bg-info">{report.status}</span>
           </div>
           <h6 className="mt-3">Messaggi pubblici</h6>
-          {report.messages?.length ? (
-            <ul className="list-unstyled chat-thread mb-3">
+          <div className="chat-box mb-3" ref={chatBoxRef}>
+            {report.messages?.length ? (
+            <ul className="list-unstyled chat-thread mb-0">
               {(report.messages || [])
                 .slice()
                 .sort((a: any, b: any) => {
@@ -161,9 +172,10 @@ export default function CaseAccessPublic() {
                 );
               })}
             </ul>
-          ) : (
-            <div className="text-muted mb-3">Nessun messaggio pubblico.</div>
-          )}
+            ) : (
+              <div className="text-muted p-3">Nessun messaggio pubblico.</div>
+            )}
+          </div>
 
           <form className="vstack gap-2" onSubmit={async (e) => {
             e.preventDefault();
@@ -264,14 +276,32 @@ export default function CaseAccessPublic() {
               />
               <div className="form-text">Formati consentiti: PNG, JPEG, PDF, TXT. Per gli audio puoi registrare/caricare sotto e trascrivere il testo automaticamente; gli audio verranno allegati alla pratica.</div>
             </div>
-            <div>
-              <VoiceSection
-                title="Allegato vocale"
-                onChange={setVoiceFile}
-                onText={(txt) => setReply((prev) => (prev ? `${prev}\n\n${txt}` : txt))}
-                onIncludeAttachmentChange={setVoiceInclude}
-                disabled={sending}
-              />
+            <div className="mt-2">
+              <div className="form-check form-switch mt-1 mb-2 fw-semibold">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="voice-switch-case"
+                  checked={voiceEnabled}
+                  onChange={(e) => {
+                    const enabled = e.currentTarget.checked;
+                    setVoiceEnabled(enabled);
+                    if (!enabled) { setVoiceFile(null); setVoiceInclude(false); }
+                  }}
+                />
+                <label className="form-check-label" htmlFor="voice-switch-case">
+                  Aggiungi allegato vocale
+                </label>
+              </div>
+              {voiceEnabled && (
+                <VoiceSection
+                  title="Allegato vocale"
+                  onChange={setVoiceFile}
+                  onText={(txt) => setReply((prev) => (prev ? `${prev}\n\n${txt}` : txt))}
+                  onIncludeAttachmentChange={setVoiceInclude}
+                  disabled={sending}
+                />
+              )}
             </div>
             <button className="btn btn-dark" type="submit" disabled={sending}>{sending ? 'Invio…' : 'Invia'}</button>
           </form>
@@ -295,4 +325,3 @@ function mapError(err: any): string {
   }
   return err?.message || 'Errore imprevisto';
 }
-

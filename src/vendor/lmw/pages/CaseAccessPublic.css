@@ -16,3 +16,9 @@
 .chat-body {
   white-space: pre-wrap;
 }
+
+/* Scrollable chat container */
+.chat-box {
+  max-height: 55vh;
+  overflow-y: auto;
+}
