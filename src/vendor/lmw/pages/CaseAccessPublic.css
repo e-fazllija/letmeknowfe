@@ -1,0 +1,25 @@
+.chat-thread {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.chat-row {
+  list-style: none;
+}
+
+.chat-bubble {
+  max-width: min(75%, 42rem);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 576px) {
+  .chat-bubble {
+    max-width: 88%;
+  }
+}
+
+.chat-body {
+  white-space: pre-wrap;
+}
+

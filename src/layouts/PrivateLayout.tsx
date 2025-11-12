@@ -85,7 +85,7 @@ export function PrivateLayout() {
 
           {isAuditor(auth?.user) && (
             <div role="status" aria-live="polite" style={{ background:'#fff3cd', color:'#5c4c0b', padding:'8px 12px', borderBottom:'1px solid #f1e2a8' }}>
-              <strong>Modalità Audit – sola lettura</strong>
+              <strong>Modalità Auditore – sola lettura</strong>
             </div>
           )}
 

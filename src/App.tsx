@@ -43,7 +43,7 @@ function RequirePermission({
   return has(perm) ? (
     <>{children}</>
   ) : (
-    <div className="alert alert-warning">403 — Non autorizzato</div>
+    <div className="alert alert-warning">Non autorizzato</div>
   );
 }
 

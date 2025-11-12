@@ -10,6 +10,7 @@ export default defineConfig({
     },
   },
   server: {
+    port: 1573,
     proxy: {
       // Proxy solo per lo sviluppo: tutte le richieste a /v1 passano al BE su :3000
       "/v1": {
