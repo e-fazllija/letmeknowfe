@@ -360,7 +360,7 @@ export default function NewReport() {
             <Form.Group className="mb-3" controlId="attachments">
               <Form.Label>Allegati</Form.Label>
               <Form.Control type="file" multiple accept=".png,.jpg,.jpeg,.pdf,.txt,.mp3,.wav" disabled={!PRESIGN_ENABLED} title={PRESIGN_ENABLED ? undefined : "Funzione non disponibile"} {...register("attachments")} />
-              <div className="form-text">{PRESIGN_ENABLED ? "File fino a ~100MB." : "Funzione non disponibile."}</div>
+              <div className="form-text">{PRESIGN_ENABLED ? "3 file, fino a ~10MB l'uno." : "Funzione non disponibile."}</div>
             </Form.Group>
 
             <Form.Group className="mb-3" controlId="revealSecret">

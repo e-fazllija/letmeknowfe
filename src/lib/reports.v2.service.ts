@@ -89,6 +89,50 @@ export async function fetchAgentUsersCached(): Promise<TenantUser[]> {
   return list;
 }
 
+// --- AUDITOR users (ADMIN select for auditor assignment) ---
+export async function fetchAuditorUsers(): Promise<TenantUser[]> {
+  try {
+    const { data } = await api.get(v1("tenant/users"), { params: { role: "AUDITOR" }, withCredentials: true });
+    const list = Array.isArray(data) ? (data as any[]) : [];
+    const mapped: TenantUser[] = list.map((u: any) => ({ id: String(u?.id), email: u?.email, name: u?.name, role: u?.role }));
+    const onlyAuditors = mapped.filter((u: any) => {
+      const role = String(u?.role || "").toUpperCase();
+      const rolesArr: string[] = Array.isArray((u as any)?.roles) ? (u as any).roles : [];
+      const hasInArray = rolesArr.some((r: any) => String(r || "").toUpperCase() === "AUDITOR");
+      return role === "AUDITOR" || hasInArray;
+    });
+    return onlyAuditors;
+  } catch (e: any) {
+    const status = e?.response?.status;
+    if (status === 404 || status === 501) return [];
+    if (import.meta.env.DEV) return [];
+    return [];
+  }
+}
+
+// Cached variant (sessionStorage) with TTL 10 minutes
+const AUDITORS_CACHE_KEY = "lmw_users_auditors";
+const AUDITORS_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+export async function fetchAuditorUsersCached(): Promise<TenantUser[]> {
+  try {
+    const raw = sessionStorage.getItem(AUDITORS_CACHE_KEY);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { ts: number; list: TenantUser[] };
+        if (parsed && typeof parsed.ts === "number" && Array.isArray(parsed.list)) {
+          const fresh = Date.now() - parsed.ts < AUDITORS_TTL_MS;
+          if (fresh) return parsed.list;
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  } catch { /* ignore storage errors */ }
+
+  const list = await fetchAuditorUsers();
+  try { sessionStorage.setItem(AUDITORS_CACHE_KEY, JSON.stringify({ ts: Date.now(), list })); } catch { /* ignore */ }
+  return list;
+}
+
 export async function patchStatus(input: { reportId: string; status: ReportStatus; note?: string; author?: string; agentId?: string; clientId?: string }): Promise<void> {
   const { reportId, ...body } = input;
   await api.patch(v1(`tenant/reports/${encodeURIComponent(reportId)}/status`), { reportId, ...body }, { withCredentials: true });

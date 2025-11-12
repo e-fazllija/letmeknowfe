@@ -39,7 +39,7 @@ export default function Sidebar() {
           </Nav.Link>
         )}
 
-        {/* Archivio rimosso dalla sidebar su richiesta */}
+        {/* Archivio rimosso dalla sidebar */}
 
         {/* Sempre visibile */}
         <Nav.Link as={NavLink} to="/settings">

@@ -67,8 +67,6 @@ export default function Reports() {
     status: filters.status || undefined,
     departmentId: filters.departmentId || undefined,
     categoryId: filters.categoryId || undefined,
-    // Auditor visibility:paramentro attuale corretto, per ora non torna nessun report
-    internalUserId: user?.role === "auditor" ? "me" : undefined,
   } as any);
 
   const deptName = useMemo(() => new Map(departments.map((d) => [d.id, d.name])), [departments]);
@@ -296,6 +294,5 @@ export default function Reports() {
     </div>
   );
 }
-
 
 

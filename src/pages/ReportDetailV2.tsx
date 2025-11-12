@@ -15,6 +15,9 @@ import {
   unassign,
   takeReport,
   fetchAgentUsersCached,
+  fetchAuditorUsersCached,
+  assignAuditor,
+  unassignAuditor,
   type AttachmentItem,
   type ReportStatus,
   type Message,
@@ -85,6 +88,10 @@ export default function ReportDetailV2() {
   const [users, setUsers] = useState<Array<{ id: string; email?: string; name?: string }>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [assignUserId, setAssignUserId] = useState<string>("");
+  const [auditorUsers, setAuditorUsers] = useState<Array<{ id: string; email?: string; name?: string }>>([]);
+  const [loadingAuditors, setLoadingAuditors] = useState(false);
+  const [assignAuditorId, setAssignAuditorId] = useState<string>("");
+  const [assignAuditorBusy, setAssignAuditorBusy] = useState(false);
 
   const assigneeId: string | undefined = useMemo(() => String((report as any)?.internalUserId || (report as any)?.assigneeId || (report as any)?.assignedToUserId || "") || undefined, [report]);
   const canOperate = useMemo(() => (!auditor && !!meId && !!assigneeId && assigneeId === meId), [auditor, meId, assigneeId]);
@@ -120,6 +127,14 @@ export default function ReportDetailV2() {
         } catch {}
         finally {
           setLoadingUsers(false);
+        }
+        setLoadingAuditors(true);
+        try {
+          const ausers = await fetchAuditorUsersCached();
+          setAuditorUsers(ausers);
+        } catch {}
+        finally {
+          setLoadingAuditors(false);
         }
       }
     } catch (e: any) {
@@ -171,6 +186,43 @@ export default function ReportDetailV2() {
     return assigneeId;
   }, [assigneeId, report, userMap, users]);
   const reporterName: string | null = useMemo(() => { const priv = String((report as any)?.privacy || (report as any)?.privacyMode || "").toUpperCase(); if (priv !== "CONFIDENZIALE" && priv !== "CONFIDENTIAL") return null; const n = (report as any)?.reporterName || (report as any)?.reporter?.name || (report as any)?.reporter?.fullName || (report as any)?.reporterFullName || (report as any)?.reporter?.displayName || null; return n ? String(n) : null; }, [report]);
+
+  // --- System events as virtual messages (for auditor visibility) ---
+  const EVENT_LABELS: Record<string, string> = useMemo(() => ({
+    createdAt: 'Creata',
+    assignedAt: 'Assegnata',
+    acknowledgeAt: 'Conferma ricezione',
+    inProgressAt: 'Presa in carico',
+    dueAt: 'Scadenza',
+    deadline: 'Scadenza',
+    closedAt: 'Chiusa',
+    finalClosedAt: 'Chiusura definitiva',
+  }), []);
+  const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleString() : '-');
+  function buildSystemEvents(r: any) {
+    const keys = ['createdAt','assignedAt','acknowledgeAt','inProgressAt','dueAt','deadline','closedAt','finalClosedAt'];
+    const out: any[] = [];
+    for (const k of keys) {
+      const at = r?.[k];
+      if (!at) continue;
+      out.push({ id: `evt_${k}`, reportId: r?.id, author: 'system', type: 'SYSTEM', note: k.toUpperCase(), body: `${EVENT_LABELS[k] || k}: ${fmtDate(at)}`, createdAt: at });
+    }
+    return out;
+  }
+  function isSystemMessage(m: any) {
+    const authorSys = String(m?.author || '').toLowerCase() === 'system';
+    const typeSys = String((m as any)?.type || '').toUpperCase() === 'SYSTEM';
+    const note = String((m as any)?.note || '').toUpperCase();
+    const noteSys = note.startsWith('CASE_') || ['CREATEDAT','ASSIGNEDAT','ACKNOWLEDGEAT','INPROGRESSAT','DUEAT','DEADLINE','CLOSEDAT','FINALCLOSEDAT'].includes(note);
+    return authorSys || typeSys || noteSys;
+  }
+  const systemEvents = useMemo(() => buildSystemEvents(report || {}), [report]);
+  const combinedMessages = useMemo(() => {
+    const arr = Array.isArray(messages) ? messages : [];
+    const all = [...arr, ...systemEvents];
+    return all.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [messages, systemEvents]);
+  const shownMessages = useMemo(() => (auditor ? combinedMessages.filter(isSystemMessage) : combinedMessages), [auditor, combinedMessages]);
 
   async function onStatusSubmit(data: StatusForm) {
     try {
@@ -257,7 +309,7 @@ export default function ReportDetailV2() {
   if (error) return <div className="container py-4 alert alert-danger">{error}</div>;
   if (!report) return <div className="container py-4">Segnalazione non trovata.</div>;
 
-  const titleMasked = auditor ? "â€¢â€¢â€¢â€¢â€¢â€¢" : safeTitle(report);
+  const titleMasked = safeTitle(report);
   const status = String(report.status || "");
   const hasAssignee = !!assigneeId;
   const statusOpen = status.toUpperCase() === "OPEN";
@@ -341,7 +393,7 @@ export default function ReportDetailV2() {
       <Card className="shadow-sm mb-3">
         <Card.Header><strong>Descrizione</strong></Card.Header>
         <Card.Body>
-          {renderPlainWithBreaks(auditor ? 'â€¢â€¢â€¢â€¢â€¢â€¢' : ((report as any)?.summary ?? ''))}
+          {renderPlainWithBreaks(auditor ? 'Dato non disponibile per auditor' : ((report as any)?.summary ?? ''))}
         </Card.Body>
       </Card>
 
@@ -349,23 +401,31 @@ export default function ReportDetailV2() {
         <Col md={8}>
           <Card className="shadow-sm">
             <Card.Header className="d-flex justify-content-between align-items-center"><strong>Messaggi</strong></Card.Header>
-            <Card.Body>
-              <ListGroup>
-                {messages.map((m) => (
-                  <ListGroup.Item key={(m as any).id}>
+            <Card.Body className="p-0">
+              <div className="overflow-auto p-3" style={{ maxHeight: '50vh', minHeight: 360 }}>
+                <ListGroup variant="flush">
+                {shownMessages.map((m) => (
+                  <ListGroup.Item key={(m as any).id} className="px-0">
                     <div className="d-flex justify-content-between align-items-center">
                       <div>
-                        <Badge bg={String((m as any).visibility || 'INTERNAL').toUpperCase() === 'INTERNAL' ? 'secondary' : 'primary'}>
-                          {String((m as any).visibility || 'INTERNAL').toUpperCase()}
-                        </Badge>{' '}<strong>{(m as any)?.author || '-'}</strong>
+                        {isSystemMessage(m) ? (
+                          <Badge bg="danger">SYSTEM</Badge>
+                        ) : (
+                          <Badge bg={String((m as any).visibility || 'INTERNAL').toUpperCase() === 'INTERNAL' ? 'secondary' : 'primary'}>
+                            {String((m as any).visibility || 'INTERNAL').toUpperCase()}
+                          </Badge>
+                        )}{' '}<strong>{(m as any)?.author || '-'}</strong>
                       </div>
                       <small>{new Date((m as any).createdAt).toLocaleString()}</small>
                     </div>
-                    <div className="mt-1" style={{ whiteSpace: 'pre-wrap' }}>{auditor ? 'â€¢â€¢â€¢â€¢â€¢â€¢' : ((m as any)?.body || '')}</div>
+                    <div className="mt-1" style={{ whiteSpace: 'pre-wrap', fontStyle: isSystemMessage(m) ? 'italic' : undefined }}>
+                      {auditor && !isSystemMessage(m) ? '••••••' : ((m as any)?.body || '')}
+                    </div>
                   </ListGroup.Item>
                 ))}
-                {messages.length === 0 && (<div className="text-muted">Nessun messaggio.</div>)}
-              </ListGroup>
+                {shownMessages.length === 0 && (<div className="text-muted">Nessun messaggio.</div>)}
+                </ListGroup>
+              </div>
             </Card.Body>
           </Card>
 
