@@ -8,7 +8,7 @@ import { useCategories } from "@/hooks/useCategories";
 import { useDebounced } from "@/hooks/useDebounced";
 import { useArchive } from "@/lib/archive.service";
 import { STATUS_LABELS, statusToLabel } from "@/lib/status.labels";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, isAuditor } from "@/context/AuthContext";
 
 export default function Reports() {
   const navigate = useNavigate();
@@ -60,6 +60,11 @@ export default function Reports() {
   const { categories } = useCategories(filters.departmentId || undefined);
   const qDebounced = useDebounced(filters.q, 300);
 
+  const meId = user?.id ? String(user.id) : undefined;
+  const auditorFilters = isAuditor(user)
+    ? { auditor: "me", auditorId: meId, internalUserId: meId, assignedToUserId: meId, assignedTo: meId }
+    : {};
+
   const { reports, loading, error } = useReports({
     page: filters.page,
     pageSize: filters.pageSize,
@@ -67,6 +72,7 @@ export default function Reports() {
     status: filters.status || undefined,
     departmentId: filters.departmentId || undefined,
     categoryId: filters.categoryId || undefined,
+    ...(auditorFilters as any),
   } as any);
 
   const deptName = useMemo(() => new Map(departments.map((d) => [d.id, d.name])), [departments]);

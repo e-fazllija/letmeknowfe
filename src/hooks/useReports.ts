@@ -41,7 +41,8 @@ export function useReports(filters: {
       setLoading(true);
       setError(null);
       try {
-        const params = compactParams({
+        // Build base params
+        const base = {
           page: Number(filters.page) || 1,
           pageSize: Number(filters.pageSize) || 20,
           status: filters.status || undefined,
@@ -56,7 +57,17 @@ export function useReports(filters: {
           internalUserId: (filters.internalUserId || "").trim() || undefined,
           assignedToUserId: (filters.assignedToUserId || "").trim() || undefined,
           assignedTo: (filters.assignedTo || "").trim() || undefined,
-        });
+        } as Record<string, unknown>;
+
+        // Extra auditor aliases to improve compatibility across BE variants
+        if (filters.auditorId) {
+          base["assignedAuditorId"] = (filters.auditorId || "").trim();
+          base["auditorUserId"] = (filters.auditorId || "").trim();
+          base["reportAuditorId"] = (filters.auditorId || "").trim();
+          base["auditorOf"] = (filters.auditorId || "").trim();
+        }
+
+        const params = compactParams(base);
         try { if (import.meta.env.DEV) console.debug('[useReports] params =', params); } catch {}
         const res = await api.get(v1("tenant/reports"), {
           params,

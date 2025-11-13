@@ -194,3 +194,10 @@ export async function unassignAuditor(reportId: string, auditorId: string): Prom
   );
   return (data as any) || { message: 'AUDITOR_UNASSIGNED' };
 }
+
+// --- Report auditors (list assigned auditors for a report) ---
+export async function getReportAuditors(reportId: string): Promise<Array<{ id: string; email?: string; name?: string }>> {
+  const { data } = await api.get(v1(`tenant/reports/${encodeURIComponent(reportId)}/auditors`), { withCredentials: true });
+  const arr = Array.isArray(data) ? data : [];
+  return arr.map((u: any) => ({ id: String(u?.id || u?.auditorId || u?.userId || ''), email: u?.email || u?.auditor?.email, name: u?.name || u?.auditor?.name }));
+}
