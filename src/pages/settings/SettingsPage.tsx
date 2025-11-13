@@ -28,7 +28,7 @@ export default function SettingsPage() {
   // URL sync optional: skipped to avoid hash-router conflicts
 
   if (!FEATURE_SETTINGS) return <div className="container py-4"><div className="alert alert-secondary">Impostazioni disabilitate.</div></div>;
-  if (!canSettings) return <div className="container py-4"><div className="alert alert-warning">403 — Non autorizzato</div></div>;
+  if (!canSettings) return <div className="container py-4"><div className="alert alert-warning">Non autorizzato</div></div>;
 
   const content = useMemo(() => {
     switch (tab) {

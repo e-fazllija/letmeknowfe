@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,6 +39,7 @@ import AttachmentPreviewModal from "@/components/common/AttachmentPreviewModal";
 import { fetchDepartments as fetchDeptApi } from "@/lib/departments.api";
 import { fetchCategories as fetchCatsApi } from "@/lib/categories.api";
 import { useUserResolver } from "@/lib/useUserResolver";
+import "@/vendor/lmw/pages/CaseAccessPublic.css";
 
 const StatusSchema = z.object({ status: z.enum(["OPEN","IN_PROGRESS","SUSPENDED","NEED_INFO","CLOSED"]) });
 type StatusForm = z.infer<typeof StatusSchema>;
@@ -54,6 +56,16 @@ function safeTitle(r?: any) {
   const t = r?.title?.trim?.();
   const s = r?.summary?.trim?.();
   return t || s || "-";
+}
+
+function formatDayLabel(d: Date): string {
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const oneDay = 24 * 60 * 60 * 1000;
+  if (day === today) return "Oggi";
+  if (day === today - oneDay) return "Ieri";
+  try { return d.toLocaleDateString(); } catch { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 }
 
 export default function ReportDetailV2() {
@@ -92,6 +104,9 @@ export default function ReportDetailV2() {
   const [loadingAuditors, setLoadingAuditors] = useState(false);
   const [assignAuditorId, setAssignAuditorId] = useState<string>("");
   const [assignAuditorBusy, setAssignAuditorBusy] = useState(false);
+
+  // Public chat refs/state
+  const chatBoxRef = useRef<HTMLDivElement | null>(null);
 
   const assigneeId: string | undefined = useMemo(() => String((report as any)?.internalUserId || (report as any)?.assigneeId || (report as any)?.assignedToUserId || "") || undefined, [report]);
   const canOperate = useMemo(() => (!auditor && !!meId && !!assigneeId && assigneeId === meId), [auditor, meId, assigneeId]);
@@ -161,6 +176,7 @@ export default function ReportDetailV2() {
   const { register: regStatus, handleSubmit: submitStatus, formState: { isSubmitting: statusBusy }, reset: resetStatus, watch: watchStatus } = useForm<StatusForm>({ resolver: zodResolver(StatusSchema), defaultValues: { status: (report?.status as ReportStatus) ?? "OPEN" } });
   useEffect(() => { if (report?.status) resetStatus({ status: report.status as ReportStatus }); }, [report?.status]);
   const { register: regMsg, handleSubmit: submitMsg, reset: resetMsg, formState: { isSubmitting: msgBusy } } = useForm<MessageForm>({ resolver: zodResolver(MessageSchema), defaultValues: { body: "", visibility: "INTERNAL" } });
+  const { register: regPub, handleSubmit: submitPub, reset: resetPub, formState: { isSubmitting: pubBusy } } = useForm<MessageForm>({ resolver: zodResolver(MessageSchema), defaultValues: { body: "", visibility: "PUBLIC" } });
 
   const [myNote, setMyNote] = useState<string>("");
   const [myNoteSavedAt, setMyNoteSavedAt] = useState<string | undefined>(undefined);
@@ -222,7 +238,38 @@ export default function ReportDetailV2() {
     const all = [...arr, ...systemEvents];
     return all.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [messages, systemEvents]);
-  const shownMessages = useMemo(() => (auditor ? combinedMessages.filter(isSystemMessage) : combinedMessages), [auditor, combinedMessages]);
+  const shownMessages = useMemo(() => {
+    if (auditor) return combinedMessages.filter(isSystemMessage);
+    return combinedMessages.filter((m: any) => {
+      if (isSystemMessage(m)) return true; // keep system events
+      const vis = String((m?.visibility || 'INTERNAL')).toUpperCase();
+      return vis !== 'PUBLIC'; // exclude public agent/reporter messages (now in Chat pubblica)
+    });
+  }, [auditor, combinedMessages]);
+
+  // Public-only messages for chat view (bubble layout)
+  const publicMessages = useMemo(() => {
+    const arr = (Array.isArray(messages) ? messages : []).filter((m: any) => String((m?.visibility || "")).toUpperCase() === "PUBLIC");
+    const toTime = (x: any) => {
+      const raw = x?.createdAt ?? x?.ts ?? 0;
+      if (typeof raw === "number") return raw;
+      const s = String(raw || "").trim();
+      if (!s) return 0;
+      const asNum = Number(s);
+      if (!Number.isNaN(asNum)) return asNum;
+      const parsed = Date.parse(s);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+    return arr.slice().sort((a: any, b: any) => toTime(a) - toTime(b));
+  }, [messages]);
+
+  // Auto-scroll public chat to bottom when new messages arrive
+  useEffect(() => {
+    try {
+      const el = chatBoxRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    } catch {}
+  }, [publicMessages.length]);
 
   async function onStatusSubmit(data: StatusForm) {
     try {
@@ -236,6 +283,12 @@ export default function ReportDetailV2() {
   async function onMessageSubmit(data: MessageForm) {
     try { await postMessage({ reportId: id, body: data.body, visibility: data.visibility || "INTERNAL" }); const list = await getMessages(id, "ALL"); setMessages(Array.isArray(list) ? list : []); resetMsg({ body: "", visibility: "INTERNAL" }); setToast({ show: true, message: "Messaggio inviato", variant: "success" }); }
     catch (e: any) { const s = e?.response?.status; if (s === 403) setToast({ show: true, message: "Operazione non consentita per il tuo ruolo", variant: "danger" }); else setToast({ show: true, message: "Errore di connessione", variant: "danger" }); }
+  }
+
+  // Wrapper to send a PUBLIC message from chat form
+  async function onPublicSubmit(data: MessageForm) {
+    await onMessageSubmit({ body: data.body, visibility: "PUBLIC" } as MessageForm);
+    try { resetPub({ body: "", visibility: "PUBLIC" }); } catch {}
   }
 
   async function onAssignMeClick() {
@@ -400,7 +453,7 @@ export default function ReportDetailV2() {
       <Row className="g-3">
         <Col md={8}>
           <Card className="shadow-sm">
-            <Card.Header className="d-flex justify-content-between align-items-center"><strong>Messaggi</strong></Card.Header>
+            <Card.Header className="d-flex justify-content-between align-items-center"><strong>Messaggi interni</strong></Card.Header>
             <Card.Body className="p-0">
               <div className="overflow-auto p-3" style={{ maxHeight: '50vh', minHeight: 360 }}>
                 <ListGroup variant="flush">
@@ -426,25 +479,89 @@ export default function ReportDetailV2() {
                 {shownMessages.length === 0 && (<div className="text-muted">Nessun messaggio.</div>)}
                 </ListGroup>
               </div>
+              {!auditor && canOperate && (
+                <div className="border-top p-3">
+                  <Form onSubmit={submitMsg(onMessageSubmit)}>
+                    <div className="d-flex align-items-start gap-2">
+                      <Form.Control className="flex-grow-1" as="textarea" rows={2} maxLength={5000} placeholder="Scrivi un messaggio interno" disabled={msgBusy} {...regMsg('body')} style={{ resize: 'vertical' }} />
+                      <Button type="submit" disabled={msgBusy} variant="dark">Invia</Button>
+                    </div>
+                    <input type="hidden" value="INTERNAL" {...regMsg('visibility')} />
+                  </Form>
+                </div>
+              )}
             </Card.Body>
           </Card>
-
-          {!auditor && canOperate && (
+          
+          {!auditor && (
             <Card className="shadow-sm mt-3">
-              <Card.Header><strong>Nuovo messaggio</strong></Card.Header>
-              <Card.Body>
-                <Form onSubmit={submitMsg(onMessageSubmit)}>
-                  <Row className="g-2">
-                    <Col md={9}><Form.Control as="textarea" rows={3} placeholder="Scrivi un messaggio" disabled={msgBusy} {...regMsg('body')} /></Col>
-                    <Col md={3}>
-                      <Form.Select disabled={msgBusy} {...regMsg('visibility')} defaultValue={'INTERNAL'}>
-                        <option value="INTERNAL">INTERNAL</option>
-                        <option value="PUBLIC">PUBLIC</option>
-                      </Form.Select>
-                      <div className="mt-2 d-flex justify-content-end"><Button type="submit" disabled={msgBusy} variant="dark">Invia</Button></div>
-                    </Col>
-                  </Row>
-                </Form>
+              <Card.Header><strong>Chat pubblica</strong></Card.Header>
+              <Card.Body className="p-0">
+                <div
+                  className="chat-box overflow-auto p-3"
+                  style={{ maxHeight: '50vh', minHeight: 360, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable both-edges' as any }}
+                  ref={chatBoxRef}
+                >
+                  {publicMessages.length ? (
+                    <ul className="list-unstyled chat-thread mb-0">
+                      {(() => {
+                        const nodes: any[] = [];
+                        let lastDayKey: string | null = null;
+                        publicMessages.forEach((m: any, i: number) => {
+                          const dt = m?.createdAt ? new Date(m.createdAt as any) : null;
+                          const dayKey = dt ? `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}` : `idx_${i}`;
+                          if (dayKey !== lastDayKey) {
+                            lastDayKey = dayKey;
+                            const label = dt ? formatDayLabel(dt) : '';
+                            nodes.push(
+                              <li
+                                key={`sep_${dayKey}`}
+                                className="chat-day-sep"
+                                style={{ position: 'sticky', top: 0, zIndex: 2, pointerEvents: 'none', margin: '4px 0 8px 0' }}
+                              >
+                                <div className="d-flex justify-content-center">
+                                  <span className="badge bg-light text-muted border rounded-pill px-3 py-1">{label}</span>
+                                </div>
+                              </li>
+                            );
+                          }
+                          const who = String((m?.author || m?.authorRole || m?.authorName || '')).toUpperCase();
+                          const AGENT_ALIASES = new Set(["AGENT","AGENTE","OPERATOR","OPERATORE","ADMIN","HOST","SUPERHOST"]);
+                          const isAgent = AGENT_ALIASES.has(who);
+                          const time = dt ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                          nodes.push(
+                            <li className="chat-row" key={m?.id || `m_${i}`}>
+                              <div className={'d-flex ' + (isAgent ? 'justify-content-end' : 'justify-content-start')}>
+                                <div className="d-inline-block">
+                                  {!isAgent && (<div className="small text-muted fw-semibold ms-1 mb-1">Segnalante</div>)}
+                                  <div className={'chat-bubble rounded-3 shadow-sm p-2 ' + (isAgent ? 'bg-primary text-white' : 'bg-light')} style={{ display: 'inline-block', maxWidth: '45ch' }}>
+                                    <div className="chat-body">{m?.body}</div>
+                                    {time && (
+                                      <div className={'chat-ts small mt-1 ' + (isAgent ? 'text-white-50' : 'text-muted')} style={{ whiteSpace: 'nowrap' }}>{time}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        });
+                        return nodes;
+                      })()}
+                    </ul>
+                  ) : (
+                    <div className="text-muted p-3">Nessun messaggio pubblico.</div>
+                  )}
+                </div>
+                {canOperate && (
+                  <div className="border-top p-3">
+                    <Form onSubmit={submitPub(onPublicSubmit)}>
+                      <div className="d-flex align-items-start gap-2">
+                        <Form.Control className="flex-grow-1" as="textarea" rows={2} maxLength={5000} placeholder="Scrivi un messaggio pubblico" disabled={pubBusy} {...regPub('body')} style={{ resize: 'vertical' }} />
+                        <Button type="submit" disabled={pubBusy} variant="dark">Invia</Button>
+                      </div>
+                    </Form>
+                  </div>
+                )}
               </Card.Body>
             </Card>
           )}

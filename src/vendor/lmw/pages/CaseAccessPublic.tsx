@@ -42,6 +42,15 @@ export default function CaseAccessPublic() {
   const [showValidationReply, setShowValidationReply] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const chatBoxRef = useRef<HTMLDivElement | null>(null);
+  function formatDayLabel(d: Date): string {
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const oneDay = 24 * 60 * 60 * 1000;
+    if (day === today) return 'Oggi';
+    if (day === today - oneDay) return 'Ieri';
+    try { return d.toLocaleDateString(); } catch { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  }
   // ripristina da sessionStorage
   useEffect(() => {
     try {
@@ -138,39 +147,63 @@ export default function CaseAccessPublic() {
           <div className="chat-box mb-3" ref={chatBoxRef}>
             {report.messages?.length ? (
             <ul className="list-unstyled chat-thread mb-0">
-              {(report.messages || [])
-                .slice()
-                .sort((a: any, b: any) => {
-                  const toTime = (x: any) => {
-                    const raw = x?.createdAt ?? x?.ts ?? 0;
-                    if (typeof raw === 'number') return raw;
-                    const s = String(raw || '').trim();
-                    if (!s) return 0;
-                    const asNum = Number(s);
-                    if (!Number.isNaN(asNum)) return asNum;
-                    const parsed = Date.parse(s);
-                    return Number.isNaN(parsed) ? 0 : parsed;
-                  };
-                  return toTime(a) - toTime(b);
-                })
-                .map((m, i) => {
-                  const who = String(((m as any).author || '')).toUpperCase();
-                  const PUBLIC_ALIASES = new Set(['PUBLIC', 'SEGNALANTE', 'CITIZEN', 'UTENTE', 'USER']);
-                  const isMe = PUBLIC_ALIASES.has(who);
-                  const ts = (m as any).createdAt ? new Date((m as any).createdAt as any).toLocaleString() : '';
-                  return (
-                    <li className="chat-row" key={(m as any).id || i}>
-                      <div className={'d-flex ' + (isMe ? 'justify-content-end' : 'justify-content-start')}>
-                      <div className={'chat-bubble rounded-3 shadow-sm p-2 ' + (isMe ? 'bg-primary text-white' : 'bg-light')}>
-                        <div className="chat-body">{m.body}</div>
-                        {ts && (
-                          <div className={'chat-ts small mt-1 ' + (isMe ? 'text-white-50' : 'text-muted')}>{ts}</div>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
+              {(() => {
+                const nodes: any[] = [];
+                let lastDayKey: string | null = null;
+                const toTime = (x: any) => {
+                  const raw = x?.createdAt ?? x?.ts ?? 0;
+                  if (typeof raw === 'number') return raw;
+                  const s = String(raw || '').trim();
+                  if (!s) return 0;
+                  const asNum = Number(s);
+                  if (!Number.isNaN(asNum)) return asNum;
+                  const parsed = Date.parse(s);
+                  return Number.isNaN(parsed) ? 0 : parsed;
+                };
+                (report.messages || [])
+                  .slice()
+                  .sort((a: any, b: any) => toTime(a) - toTime(b))
+                  .forEach((m: any, i: number) => {
+                    const dt = (m as any)?.createdAt ? new Date((m as any).createdAt as any) : null;
+                    const dayKey = dt ? `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}` : `idx_${i}`;
+                    if (dayKey !== lastDayKey) {
+                      lastDayKey = dayKey;
+                      const label = dt ? formatDayLabel(dt) : '';
+                      nodes.push(
+                        <li
+                          key={`sep_${dayKey}`}
+                          className="chat-day-sep"
+                          style={{ position: 'sticky', top: 0, zIndex: 2, pointerEvents: 'none', margin: '4px 0 8px 0' }}
+                        >
+                          <div className="d-flex justify-content-center">
+                            <span className="badge bg-light text-muted border rounded-pill px-3 py-1">{label}</span>
+                          </div>
+                        </li>
+                      );
+                    }
+                    const who = String(((m as any).author || '')).toUpperCase();
+                    const PUBLIC_ALIASES = new Set(['PUBLIC', 'SEGNALANTE', 'CITIZEN', 'UTENTE', 'USER']);
+                    const isMe = PUBLIC_ALIASES.has(who);
+                    const isAgent = !isMe;
+                    const time = dt ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                    nodes.push(
+                      <li className="chat-row" key={(m as any).id || `m_${i}`}>
+                        <div className={'d-flex ' + (isMe ? 'justify-content-end' : 'justify-content-start')}>
+                          <div className="d-inline-block">
+                            {isAgent && (<div className="small text-muted fw-semibold ms-1 mb-1">Operatore</div>)}
+                            <div className={'chat-bubble rounded-3 shadow-sm p-2 ' + (isMe ? 'bg-primary text-white' : 'bg-light')} style={{ display: 'inline-block', maxWidth: '70ch' }}>
+                              <div className="chat-body">{(m as any).body}</div>
+                              {time && (
+                                <div className={'chat-ts small mt-1 ' + (isMe ? 'text-white-50' : 'text-muted')} style={{ whiteSpace: 'nowrap' }}>{time}</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  });
+                return nodes;
+              })()}
             </ul>
             ) : (
               <div className="text-muted p-3">Nessun messaggio pubblico.</div>

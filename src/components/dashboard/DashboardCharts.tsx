@@ -127,7 +127,7 @@ export default function DashboardCharts() {
         <Col>
           <Card className="h-100">
             <Card.Body>
-              <div className="text-secondary small">Casi aperti</div>
+              <div className="text-secondary small">Nuovi casi</div>
               <div className="fs-3 fw-semibold">{data.kpis.open}</div>
             </Card.Body>
           </Card>
