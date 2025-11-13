@@ -140,8 +140,18 @@ export default function CaseAccessPublic() {
       {report && (
         <>
           <div className="d-flex align-items-center gap-2 mb-2">
-            <h5 className="mb-0">Stato pratica</h5>
+            <h5 className="mb-0">Stato pratica: </h5>
             <span className="badge bg-info">{report.status}</span>
+          </div>
+          <div className="mb-3">
+            <div className="d-flex align-items-baseline gap-2 mb-2 flex-wrap">
+              <h5 className="mb-0">Oggetto: </h5>
+              <div className="flex-grow-1 text-break">{(report.title || report.summary || '').trim() || '-'}</div>
+            </div>
+            <div className="mb-2">
+              <h5 className="mb-1">Descrizione: </h5>
+              <div className="text-break" style={{ whiteSpace: 'pre-wrap' }}>{(report.summary || '').trim() || '-'}</div>
+            </div>
           </div>
           <h6 className="mt-3">Messaggi pubblici</h6>
           <div className="chat-box mb-3" ref={chatBoxRef}>
