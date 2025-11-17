@@ -33,8 +33,24 @@ export type CasePolicy = {
   publicShowTenantLookups?: boolean;
   publicLookupPreference?: 'GLOBAL' | 'TENANT';
 };
-export type BillingProfile = { companyName: string; taxId: string; address: string; zip: string; city: string; province: string; country: string; billingEmail: string };
-export type Subscription = { plan: "BASIC"; cycle: "MENSILE" | "ANNUALE"; status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "EXPIRED"; startsAt?: string | null; nextBillingAt?: string | null };
+export type BillingProfile = {
+  companyName: string;
+  taxId: string;
+  address: string;
+  zip: string;
+  city: string;
+  province: string;
+  country: string;
+  billingEmail: string;
+};
+export type Subscription = {
+  plan: string;
+  cycle: "MENSILE" | "ANNUALE";
+  status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+  startsAt?: string | null;
+  nextBillingAt?: string | null;
+  endsAt?: string | null;
+};
 export type PaymentMethod = { type: "CARTA" | "BONIFICO"; masked: string };
 export type TemplateQuestion = { id: string; label: string; order: number };
 export type Template = { id: string; name: string; createdAt?: string; updatedAt?: string; questions: TemplateQuestion[] };

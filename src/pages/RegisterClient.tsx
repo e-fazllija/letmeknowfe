@@ -7,24 +7,25 @@ import Alert from "react-bootstrap/Alert";
 import Card from "react-bootstrap/Card";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
-import { signupPublicClient, type EmployeeRange, type BillingCycle, type ContractTerm, type PaymentMethod, type SignupPublicClientReq } from "@/lib/publicClients.service";
+import { signupPublicClient, type EmployeeRange, type ContractTerm, type InstallmentPlan, type SignupPublicClientReq } from "@/lib/publicClients.service";
 
 const EMPLOYEE_RANGE: EmployeeRange[] = ["DA_0_A_50","DA_51_A_100","DA_101_A_150","DA_151_A_200","DA_201_A_250","OLTRE_250"];
-const BILLING_CYCLE: BillingCycle[] = ["MENSILE","ANNUALE"];
-const CONTRACT_TERM: ContractTerm[] = ["ONE_YEAR","THREE_YEARS"];
-const PAYMENT_METHOD: PaymentMethod[] = ["CARTA","BONIFICO"];
+const INSTALLMENT_PLAN: InstallmentPlan[] = ["ONE_SHOT","SEMESTRALE","TRIMESTRALE"];
 
 type FormState = {
   companyName: string; contactEmail: string; employeeRange: EmployeeRange;
   billingTaxId: string; billingEmail: string; billingPec: string; billingSdiCode: string;
   billingAddressLine1: string; billingZip: string; billingCity: string; billingProvince: string; billingCountry: string;
-  amount: string; currency: string; billingCycle: BillingCycle; contractTerm: ContractTerm; method: PaymentMethod;
+  amount: string;
+  currency: string;
+  contractTerm: ContractTerm;
+  installmentPlan: InstallmentPlan;
 };
 
 function makeIdem() { try { /* @ts-ignore */ return crypto?.randomUUID ? `req-${crypto.randomUUID()}` : `req-${Math.random().toString(36).slice(2)}${Date.now()}`; } catch { return `req-${Date.now()}`; } }
 
 export default function RegisterClient() {
-  const [form, setForm] = useState<FormState>({ companyName: "", contactEmail: "", employeeRange: "DA_0_A_50", billingTaxId: "", billingEmail: "", billingPec: "", billingSdiCode: "", billingAddressLine1: "", billingZip: "", billingCity: "", billingProvince: "", billingCountry: "Italia", amount: "1200", currency: "EUR", billingCycle: "ANNUALE", contractTerm: "ONE_YEAR", method: "CARTA" });
+  const [form, setForm] = useState<FormState>({ companyName: "", contactEmail: "", employeeRange: "DA_0_A_50", billingTaxId: "", billingEmail: "", billingPec: "", billingSdiCode: "", billingAddressLine1: "", billingZip: "", billingCity: "", billingProvince: "", billingCountry: "Italia", amount: "1200", currency: "EUR", contractTerm: "ONE_YEAR", installmentPlan: "ONE_SHOT" });
   const [loading, setLoading] = useState(false);
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -68,7 +69,7 @@ export default function RegisterClient() {
           companyName: form.companyName.trim(), contactEmail: form.contactEmail.trim(), employeeRange: form.employeeRange, status: "ACTIVE",
           billing: { billingTaxId: form.billingTaxId.trim(), billingEmail: form.billingEmail.trim(), billingPec: form.billingPec.trim() || undefined, billingSdiCode: form.billingSdiCode.trim() || undefined, billingAddressLine1: form.billingAddressLine1.trim(), billingZip: form.billingZip.trim(), billingCity: form.billingCity.trim(), billingProvince: form.billingProvince.trim().toUpperCase(), billingCountry: form.billingCountry.trim() }
         },
-        subscription: { amount: parseFloat(form.amount.replace(",",".")), currency: form.currency || "EUR", billingCycle: form.billingCycle, contractTerm: form.contractTerm, paymentMethod: form.method, status: "ACTIVE" },
+        subscription: { amount: parseFloat(form.amount.replace(",",".")), currency: form.currency || "EUR", contractTerm: form.contractTerm, installmentPlan: form.installmentPlan, status: "ACTIVE" },
         options: { idempotencyKey: makeIdem() },
       };
       // Inclusione condizionata nel payload
@@ -184,13 +185,47 @@ export default function RegisterClient() {
 
           <hr /><h5 className="mt-2">Sottoscrizione</h5>
           <Row className="mt-1">
-            <Col md={4}><Form.Group className="mb-3"><Form.Label>Importo *</Form.Label><Form.Control type="number" step="0.01" value={form.amount} onChange={(e) => set("amount", e.target.value)} required /></Form.Group></Col>
-            <Col md={4}><Form.Group className="mb-3"><Form.Label>Valuta</Form.Label><Form.Control value={form.currency} onChange={(e) => set("currency", e.target.value)} /></Form.Group></Col>
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Importo *</Form.Label>
+                <Form.Control
+                  type="number"
+                  step="0.01"
+                  value={form.amount}
+                  readOnly
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Valuta</Form.Label>
+                <Form.Control
+                  value={form.currency}
+                  readOnly
+                />
+              </Form.Group>
+            </Col>
           </Row>
           <Row>
-            <Col md={4}><Form.Group className="mb-3"><Form.Label>Ciclo *</Form.Label><Form.Select value={form.billingCycle} onChange={(e) => set("billingCycle", e.target.value as BillingCycle)}>{BILLING_CYCLE.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}</Form.Select></Form.Group></Col>
-            <Col md={4}><Form.Group className="mb-3"><Form.Label>Durata *</Form.Label><Form.Select value={form.contractTerm} onChange={(e) => set("contractTerm", e.target.value as ContractTerm)}>{CONTRACT_TERM.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}</Form.Select></Form.Group></Col>
-            <Col md={4}><Form.Group className="mb-3"><Form.Label>Metodo *</Form.Label><Form.Select value={form.method} onChange={(e) => set("method", e.target.value as PaymentMethod)}>{PAYMENT_METHOD.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}</Form.Select></Form.Group></Col>
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Durata</Form.Label>
+                <Form.Control value="ONE_YEAR (annuale)" readOnly />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Rateizzazione *</Form.Label>
+                <Form.Select
+                  value={form.installmentPlan}
+                  onChange={(e) => set("installmentPlan", e.target.value as InstallmentPlan)}
+                >
+                  <option value="ONE_SHOT">Unica soluzione (annuale)</option>
+                  <option value="SEMESTRALE">2 rate (semestrali)</option>
+                  <option value="TRIMESTRALE">4 rate (trimestrali)</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
           </Row>
 
           <div className="d-flex gap-2">

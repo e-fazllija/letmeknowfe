@@ -12,9 +12,8 @@ import Col from "react-bootstrap/Col";
 import {
   signupPublicClient,
   type EmployeeRange,
-  type BillingCycle,
   type ContractTerm,
-  type PaymentMethod,
+  type InstallmentPlan,
   type SignupPublicClientReq,
 } from "@/lib/publicClients.service";
 // import { activateAccount } from "@/lib/publicAuth.service";
@@ -28,9 +27,8 @@ const EMPLOYEE_RANGE: EmployeeRange[] = [
   "DA_201_A_250",
   "OLTRE_250",
 ];
-const BILLING_CYCLE: BillingCycle[] = ["MENSILE", "ANNUALE"];
 const CONTRACT_TERM: ContractTerm[] = ["ONE_YEAR", "THREE_YEARS"];
-const PAYMENT_METHOD: PaymentMethod[] = ["CARTA", "BONIFICO"];
+const INSTALLMENT_PLAN: InstallmentPlan[] = ["ONE_SHOT", "SEMESTRALE", "TRIMESTRALE"];
 
 /* -------------------- tipi -------------------- */
 type FormState = {
@@ -50,9 +48,8 @@ type FormState = {
 
   amount: string;
   currency: string;
-  billingCycle: BillingCycle;
   contractTerm: ContractTerm;
-  method: PaymentMethod;
+  installmentPlan: InstallmentPlan;
 
   // credenziali owner
   password: string;
@@ -87,9 +84,8 @@ export default function Register() {
     billingCountry: "Italia",
     amount: "99.90",
     currency: "EUR",
-    billingCycle: "MENSILE",
     contractTerm: "ONE_YEAR",
-    method: "CARTA",
+    installmentPlan: "ONE_SHOT",
     password: "",
     passwordConfirm: "",
   });
@@ -156,9 +152,8 @@ export default function Register() {
   subscription: {
     amount: parseFloat(form.amount.replace(",", ".")),
     currency: form.currency || "EUR",
-    billingCycle: form.billingCycle,
     contractTerm: form.contractTerm,
-    paymentMethod: form.method,
+    installmentPlan: form.installmentPlan,
     status: "ACTIVE",
   },
   options: { idempotencyKey: (crypto as any)?.randomUUID ? `req-${(crypto as any).randomUUID()}` : `req-${Math.random().toString(36).slice(2)}${Date.now()}` },
@@ -427,23 +422,6 @@ await signupPublicClient(payload);
             <Row>
               <Col md={4}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Ciclo *</Form.Label>
-                  <Form.Select
-                    value={form.billingCycle}
-                    onChange={(e) =>
-                      set("billingCycle", e.target.value as BillingCycle)
-                    }
-                  >
-                    {BILLING_CYCLE.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
                   <Form.Label>Durata *</Form.Label>
                   <Form.Select
                     value={form.contractTerm}
@@ -461,18 +439,16 @@ await signupPublicClient(payload);
               </Col>
               <Col md={4}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Metodo *</Form.Label>
+                  <Form.Label>Rateizzazione *</Form.Label>
                   <Form.Select
-                    value={form.method}
+                    value={form.installmentPlan}
                     onChange={(e) =>
-                      set("method", e.target.value as PaymentMethod)
+                      set("installmentPlan", e.target.value as InstallmentPlan)
                     }
                   >
-                    {PAYMENT_METHOD.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
+                    <option value="ONE_SHOT">Unica soluzione (annuale)</option>
+                    <option value="SEMESTRALE">2 rate (semestrali)</option>
+                    <option value="TRIMESTRALE">4 rate (trimestrali)</option>
                   </Form.Select>
                 </Form.Group>
               </Col>

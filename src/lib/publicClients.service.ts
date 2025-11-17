@@ -9,9 +9,8 @@ export type EmployeeRange =
   | "DA_201_A_250"
   | "OLTRE_250";
 
-export type BillingCycle = "MENSILE" | "ANNUALE";
 export type ContractTerm = "ONE_YEAR" | "THREE_YEARS";
-export type PaymentMethod = "CARTA" | "BONIFICO";
+export type InstallmentPlan = "ONE_SHOT" | "SEMESTRALE" | "TRIMESTRALE";
 
 export type SignupPublicClientReq = {
   client: {
@@ -32,16 +31,15 @@ export type SignupPublicClientReq = {
     };
   };
   subscription: {
-    billingCycle: BillingCycle;
+    subscriptionPlanId?: string;
     contractTerm: ContractTerm;
     amount: number;
     currency?: string; // default EUR
-    paymentMethod: PaymentMethod;
+    installmentPlan: InstallmentPlan;
     status?: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "EXPIRED";
     startsAt?: string | null;
     nextBillingAt?: string | null;
-    trialEndsAt?: string | null;
-    canceledAt?: string | null;
+    endsAt?: string | null;
   };
   options?: { idempotencyKey?: string };
 };
@@ -67,6 +65,13 @@ function ensureIdempotencyKey(maybe?: string) {
 }
 
 export async function signupPublicClient(payload: SignupPublicClientReq): Promise<SignupPublicClientRes> {
+  const rawPlanId = payload.subscription.subscriptionPlanId;
+  const envPlanId = ((import.meta as any).env?.VITE_SUBSCRIPTION_PLAN_ID as string | undefined)?.trim();
+  const subscriptionPlanId = (rawPlanId && rawPlanId.trim()) || envPlanId;
+  if (!subscriptionPlanId) {
+    throw new Error("subscriptionPlanId mancante (configura VITE_SUBSCRIPTION_PLAN_ID o passalo nel payload).");
+  }
+
   const body: SignupPublicClientReq = {
     client: {
       companyName: payload.client.companyName,
@@ -86,16 +91,15 @@ export async function signupPublicClient(payload: SignupPublicClientReq): Promis
       },
     },
     subscription: {
-      billingCycle: payload.subscription.billingCycle,
+      subscriptionPlanId,
       contractTerm: payload.subscription.contractTerm,
       amount: payload.subscription.amount,
       currency: payload.subscription.currency ?? "EUR",
-      paymentMethod: payload.subscription.paymentMethod,
+      installmentPlan: payload.subscription.installmentPlan,
       status: payload.subscription.status ?? "ACTIVE",
       startsAt: payload.subscription.startsAt ?? undefined,
       nextBillingAt: payload.subscription.nextBillingAt ?? undefined,
-      trialEndsAt: payload.subscription.trialEndsAt ?? undefined,
-      canceledAt: payload.subscription.canceledAt ?? undefined,
+      endsAt: payload.subscription.endsAt ?? undefined,
     },
     options: { idempotencyKey: ensureIdempotencyKey(payload.options?.idempotencyKey) },
   };
