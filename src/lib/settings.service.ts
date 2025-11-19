@@ -100,6 +100,17 @@ export const getPaymentMethod = () =>
 export const updatePaymentMethod = (input: PaymentMethod) =>
   api.put(v1("tenant/payment-method"), input).then(r => r.data as PaymentMethod);
 
+/* -------------------- BILLING / STRIPE -------------------- */
+export const createCheckoutSession = async (): Promise<{ url: string }> => {
+  const res = await api.post(v1("public/billing/checkout-session"));
+  return res.data as { url: string };
+};
+
+export const createPortalSession = async (): Promise<{ url: string }> => {
+  const res = await api.post(v1("public/billing/portal-session"));
+  return res.data as { url: string };
+};
+
 /* -------------------- TEMPLATES -------------------- */
 export const listTemplates = () =>
   asFeature(api.get(v1("tenant/templates")).then(r => r.data as Template[])) as Promise<MaybeFeatureOff<Template[]>>;

@@ -30,6 +30,8 @@ import MfaCode from "./pages/MfaCode";
 import MfaComplete from "./pages/MfaComplete";
 import RegisterClient from "./pages/RegisterClient";
 import TenantSignup from "./pages/TenantSignup";
+import BillingSuccess from "./pages/BillingSuccess";
+import BillingCanceled from "./pages/BillingCanceled";
 
 /** Guard permessi a livello rotta (403 se assente) */
 function RequirePermission({
@@ -68,9 +70,12 @@ export default function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
-                        <Route path="/logout" element={<LogoutNow />} />
+            <Route path="/logout" element={<LogoutNow />} />
             <Route path="/register" element={<RegisterClient />} />
             <Route path="/tenant-signup" element={<TenantSignup />} />
+            {/* Esito Stripe Checkout */}
+            <Route path="/billing/success" element={<BillingSuccess />} />
+            <Route path="/billing/canceled" element={<BillingCanceled />} />
 
             {/* Attivazione + MFA */}
             <Route path="/activate" element={<Activate />} />

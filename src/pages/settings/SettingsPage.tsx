@@ -12,9 +12,22 @@ import SettingsUsersTab from '@/pages/settings/tabs/SettingsUsersTab';
 export default function SettingsPage() {
   const { user } = useAuth();
   const canSettings = FEATURE_SETTINGS && (!!user && (user.role === 'admin' || (user.permissions || []).includes('SETTINGS_ADMIN' as any)));
+
   const [tab, setTab] = useState<string>('departments');
+  const [forceBillingOnly, setForceBillingOnly] = useState(false);
 
   useEffect(() => {
+    try {
+      const flag = localStorage.getItem('lmw_after_signup_payment');
+      if (flag === '1') {
+        setForceBillingOnly(true);
+        setTab('billing');
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
     try {
       const params = new URLSearchParams(window.location.search);
       const t = params.get('tab');
@@ -22,7 +35,9 @@ export default function SettingsPage() {
         if (t === 'templates' && !FEATURE_TEMPLATES) setTab('departments');
         else setTab(t);
       }
-    } catch {}
+    } catch {
+      // ignore
+    }
   }, []);
 
   // URL sync optional: skipped to avoid hash-router conflicts
@@ -31,6 +46,7 @@ export default function SettingsPage() {
   if (!canSettings) return <div className="container py-4"><div className="alert alert-warning">Non autorizzato</div></div>;
 
   const content = useMemo(() => {
+    if (forceBillingOnly) return <SettingsBillingTab />;
     switch (tab) {
       case 'users': return <SettingsUsersTab />;
       case 'departments': return <SettingsDepartmentsTab />;
@@ -40,7 +56,7 @@ export default function SettingsPage() {
       case 'billing': return <SettingsBillingTab />;
       default: return <SettingsDepartmentsTab />;
     }
-  }, [tab]);
+  }, [tab, forceBillingOnly]);
 
   return (
     <div className="container py-4">
@@ -48,12 +64,16 @@ export default function SettingsPage() {
         <h2 className="mb-0">Impostazioni</h2>
       </div>
       <Nav variant="pills" activeKey={tab} onSelect={(k) => k && setTab(k)} className="mb-3 flex-wrap" style={{ gap: 8 }}>
-        <Nav.Item><Nav.Link eventKey="users">Utenti</Nav.Link></Nav.Item>
-        <Nav.Item><Nav.Link eventKey="departments">Reparti</Nav.Link></Nav.Item>
-        <Nav.Item><Nav.Link eventKey="categories">Categorie</Nav.Link></Nav.Item>
-        <Nav.Item><Nav.Link eventKey="policy">Policy &amp; Info</Nav.Link></Nav.Item>
-        {FEATURE_TEMPLATES && (
-          <Nav.Item><Nav.Link eventKey="templates">Template</Nav.Link></Nav.Item>
+        {!forceBillingOnly && (
+          <>
+            <Nav.Item><Nav.Link eventKey="users">Utenti</Nav.Link></Nav.Item>
+            <Nav.Item><Nav.Link eventKey="departments">Reparti</Nav.Link></Nav.Item>
+            <Nav.Item><Nav.Link eventKey="categories">Categorie</Nav.Link></Nav.Item>
+            <Nav.Item><Nav.Link eventKey="policy">Policy &amp; Info</Nav.Link></Nav.Item>
+            {FEATURE_TEMPLATES && (
+              <Nav.Item><Nav.Link eventKey="templates">Template</Nav.Link></Nav.Item>
+            )}
+          </>
         )}
         <Nav.Item><Nav.Link eventKey="billing">Fatturazione</Nav.Link></Nav.Item>
       </Nav>

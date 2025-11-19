@@ -6,6 +6,14 @@ import logo from "../assets/logo-transparent-dark.png";
 export default function Sidebar() {
   const { has } = useAuth();
 
+  const billingOnly = (() => {
+    try {
+      return localStorage.getItem("lmw_after_signup_payment") === "1";
+    } catch {
+      return false;
+    }
+  })();
+
   return (
     <div>
       {/* Logo brand */}
@@ -23,30 +31,31 @@ export default function Sidebar() {
       </div>
 
       <Nav className="flex-column gap-1">
-        <Nav.Link as={NavLink} to="/home" end>
-          🏠 Home
-        </Nav.Link>
+        {!billingOnly && (
+          <>
+            <Nav.Link as={NavLink} to="/home" end>
+              Home
+            </Nav.Link>
 
-        {has("REPORT_CREATE") && (
-          <Nav.Link as={NavLink} to="/new">
-            ✍️ Nuova segnalazione
-          </Nav.Link>
+            {has("REPORT_CREATE") && (
+              <Nav.Link as={NavLink} to="/new">
+                Nuova segnalazione
+              </Nav.Link>
+            )}
+
+            {has("REPORTS_VIEW") && (
+              <Nav.Link as={NavLink} to="/reports">
+                Segnalazioni
+              </Nav.Link>
+            )}
+          </>
         )}
-
-        {has("REPORTS_VIEW") && (
-          <Nav.Link as={NavLink} to="/reports">
-            📋 Segnalazioni
-          </Nav.Link>
-        )}
-
-        {/* Archivio rimosso dalla sidebar */}
 
         {/* Sempre visibile */}
         <Nav.Link as={NavLink} to="/settings">
-          ⚙️ Impostazioni
+          Impostazioni
         </Nav.Link>
       </Nav>
     </div>
   );
 }
-

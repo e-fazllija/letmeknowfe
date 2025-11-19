@@ -4,18 +4,18 @@ import {
   getBillingProfile,
   updateBillingProfile,
   getSubscription,
-  getPaymentMethod,
-  updatePaymentMethod,
   type BillingProfile,
   type Subscription,
-  type PaymentMethod,
+  createCheckoutSession,
+  createPortalSession,
 } from '@/lib/settings.service';
 
 export default function SettingsBillingTab() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<BillingProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [payment, setPayment] = useState<PaymentMethod | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const [toast, setToast] = useState<{
     show: boolean;
     message: string;
@@ -26,14 +26,12 @@ export default function SettingsBillingTab() {
     (async () => {
       try {
         setLoading(true);
-        const [p, s, pm] = await Promise.all([
+        const [p, s] = await Promise.all([
           getBillingProfile().catch(() => null),
           getSubscription().catch(() => null),
-          getPaymentMethod().catch(() => null),
         ]);
         setProfile(p);
         setSubscription(s);
-        setPayment(pm);
       } finally {
         setLoading(false);
       }
@@ -169,85 +167,61 @@ export default function SettingsBillingTab() {
         <h6 className="mb-3">Sottoscrizione</h6>
         {subscription && !(subscription as any).__featureDisabled ? (
           <div>
-            <p>
-              <strong>Piano:</strong> {subscription.plan}
-            </p>
-            <p>
-              <strong>Ciclo:</strong> {subscription.cycle}
-            </p>
-            <p>
-              <strong>Stato:</strong> {subscription.status}
-            </p>
-            <p>
-              <strong>Inizio:</strong> {subscription.startsAt || '-'}
-            </p>
-            <p>
-              <strong>Prossima fatturazione:</strong> {subscription.nextBillingAt || '-'}
-            </p>
+            <p><strong>Piano:</strong> {subscription.plan}</p>
+            <p><strong>Ciclo:</strong> {subscription.cycle}</p>
+            <p><strong>Stato:</strong> {subscription.status}</p>
+            <p><strong>Inizio:</strong> {subscription.startsAt || '-'}</p>
+            <p><strong>Prossima fatturazione:</strong> {subscription.nextBillingAt || '-'}</p>
+
+            <div className="mt-2 d-flex gap-2">
+              <Button
+                variant="primary"
+                disabled={checkoutLoading}
+                onClick={async () => {
+                  try {
+                    setCheckoutLoading(true);
+                    const { url } = await createCheckoutSession();
+                    window.location.href = url;
+                  } catch {
+                    setToast({
+                      show: true,
+                      message: 'Errore creazione Checkout Stripe',
+                      variant: 'danger',
+                    });
+                  } finally {
+                    setCheckoutLoading(false);
+                  }
+                }}
+              >
+                {checkoutLoading ? 'Reindirizzamento...' : 'Paga / Attiva piano'}
+              </Button>
+
+              <Button
+                variant="outline-primary"
+                disabled={portalLoading}
+                onClick={async () => {
+                  try {
+                    setPortalLoading(true);
+                    const { url } = await createPortalSession();
+                    window.location.href = url;
+                  } catch {
+                    setToast({
+                      show: true,
+                      message: 'Errore apertura Portal Stripe',
+                      variant: 'danger',
+                    });
+                  } finally {
+                    setPortalLoading(false);
+                  }
+                }}
+              >
+                {portalLoading ? 'Apertura...' : 'Gestisci pagamento'}
+              </Button>
+            </div>
           </div>
         ) : (
           <p className="text-muted mb-0">Nessuna sottoscrizione attiva.</p>
         )}
-      </section>
-
-      <section>
-        <h6 className="mb-3">Metodo di pagamento</h6>
-        <Form>
-          <Row className="g-2">
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Metodo</Form.Label>
-                <Form.Select
-                  value={payment?.type || 'CARTA'}
-                  onChange={(e) =>
-                    setPayment((p) => ({
-                      ...(p || { type: 'CARTA', masked: '**** **** **** 1234' }),
-                      type: e.target.value as PaymentMethod['type'],
-                    }))
-                  }
-                >
-                  <option value="CARTA">Carta</option>
-                  <option value="BONIFICO">Bonifico</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Riferimento</Form.Label>
-                <Form.Control
-                  value={payment?.masked || '**** **** **** 1234'}
-                  onChange={(e) =>
-                    setPayment((p) => ({
-                      ...(p || { type: 'CARTA', masked: '**** **** **** 1234' }),
-                      masked: e.target.value,
-                    }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-          <div className="mt-2">
-            <Button
-              variant="dark"
-              onClick={async () => {
-                try {
-                  const payload: PaymentMethod =
-                    payment || ({ type: 'CARTA', masked: '**** **** **** 1234' } as PaymentMethod);
-                  await updatePaymentMethod(payload);
-                  setToast({ show: true, message: 'Metodo aggiornato', variant: 'success' });
-                } catch {
-                  setToast({
-                    show: true,
-                    message: 'Errore aggiornamento',
-                    variant: 'danger',
-                  });
-                }
-              }}
-            >
-              Salva metodo
-            </Button>
-          </div>
-        </Form>
       </section>
 
       <ToastContainer position="bottom-end" className="p-3">
@@ -264,4 +238,3 @@ export default function SettingsBillingTab() {
     </div>
   );
 }
-

@@ -1,5 +1,5 @@
-﻿import { useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { useEffect } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import Navbar from "react-bootstrap/Navbar";
 import Container from "react-bootstrap/Container";
 import Nav from "react-bootstrap/Nav";
@@ -13,16 +13,23 @@ export function UserBadge() {
   const auth: any = useAuth();
   const email: string = auth?.user?.email ?? "?";
   const role: string = auth?.user?.role ?? "?"; // BE manda minuscolo
-  return <span>{email} · {role}</span>;
+  return <span>{email} � {role}</span>;
 }
 
 export function PrivateLayout() {
   const auth: any = useAuth();
+  const navigate = useNavigate();
 
   function handleLogout() {
     try {
-      if (typeof auth?.logout === "function") { auth.logout(); return; }
-      if (typeof auth?.signOut === "function") { auth.signOut(); return; }
+      if (typeof auth?.logout === "function") {
+        auth.logout();
+        return;
+      }
+      if (typeof auth?.signOut === "function") {
+        auth.signOut();
+        return;
+      }
     } catch {}
   }
 
@@ -49,6 +56,19 @@ export function PrivateLayout() {
     return () => tag.remove();
   }, []);
 
+  // Se il tenant ha appena completato la registrazione ma non ha ancora pagato,
+  // forza la navigazione alla sezione Fatturazione.
+  useEffect(() => {
+    try {
+      const flag = localStorage.getItem("lmw_after_signup_payment");
+      if (flag === "1") {
+        navigate("/settings?tab=billing", { replace: true });
+      }
+    } catch {
+      // ignore
+    }
+  }, [navigate]);
+
   return (
     <NotificationsProvider>
       <div className="lmw-shell">
@@ -64,19 +84,28 @@ export function PrivateLayout() {
               <Nav className="align-items-center gap-3">
                 <NotificationBell />
                 <Dropdown align="end">
-                  <Dropdown.Toggle size="sm" variant="outline-light" id="dropdown-user" className="text-light border-0">
+                  <Dropdown.Toggle
+                    size="sm"
+                    variant="outline-light"
+                    id="dropdown-user"
+                    className="text-light border-0"
+                  >
                     {(() => {
                       const u = auth?.user;
                       const ready = Array.isArray(u?.permissions);
-                      const email = ready ? (u?.email ?? "?") : "?";
-                      const role = ready ? (u?.role ?? "?") : "?";
-                      return <span>{email} · {role}</span>;
+                      const email = ready ? u?.email ?? "?" : "?";
+                      const role = ready ? u?.role ?? "?" : "?";
+                      return <span>{email} � {role}</span>;
                     })()}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    <Dropdown.Item href="#/settings?tab=account">Profilo</Dropdown.Item>
+                    <Dropdown.Item href="#/settings?tab=account">
+                      Profilo
+                    </Dropdown.Item>
                     <Dropdown.Divider />
-                    <Dropdown.Item as="button" onClick={handleLogout}>Esci</Dropdown.Item>
+                    <Dropdown.Item as="button" onClick={handleLogout}>
+                      Esci
+                    </Dropdown.Item>
                   </Dropdown.Menu>
                 </Dropdown>
               </Nav>
@@ -84,8 +113,17 @@ export function PrivateLayout() {
           </Navbar>
 
           {isAuditor(auth?.user) && (
-            <div role="status" aria-live="polite" style={{ background:'#fff3cd', color:'#5c4c0b', padding:'8px 12px', borderBottom:'1px solid #f1e2a8' }}>
-              <strong>Modalità Auditore – sola lettura</strong>
+            <div
+              role="status"
+              aria-live="polite"
+              style={{
+                background: "#fff3cd",
+                color: "#5c4c0b",
+                padding: "8px 12px",
+                borderBottom: "1px solid #f1e2a8",
+              }}
+            >
+              <strong>Modalit� Auditore - sola lettura</strong>
             </div>
           )}
 
@@ -97,3 +135,4 @@ export function PrivateLayout() {
     </NotificationsProvider>
   );
 }
+
