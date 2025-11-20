@@ -1,4 +1,3 @@
-// src/pages/RegisterClient.tsx
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
@@ -201,32 +200,47 @@ export default function RegisterClient() {
       const res = await signupPublicClient(payload);
       const actUrl = (res as any)?.ownerInvite
         ?.activationUrl as string | undefined;
-      const contactEmail = form.contactEmail.trim();
+      const inviteEmail =
+        (res as any)?.ownerInvite?.email ||
+        form.contactEmail.trim();
+      const clientId =
+        (res as any)?.clientId ||
+        (res as any)?.client?.id;
 
       logActivationDebug(actUrl);
 
       if (actUrl) {
         setActivationUrl(actUrl);
-        try {
-          sessionStorage.setItem("lmw_last_activation_url", actUrl);
-          sessionStorage.setItem("lmw_last_activation_email", contactEmail);
-        } catch {
-          // ignore
-        }
-        try {
-          localStorage.setItem("lmw_after_signup_payment", "1");
-          localStorage.setItem("lmw_autocheckout", "1");
-        } catch {
-          // ignore
-        }
-        navigate("/activation-pending", {
-          replace: true,
-          state: { activationUrl: actUrl, email: contactEmail },
-        });
-        return;
       }
-
-      setOkMsg("Azienda creata. Abbiamo inviato l'invito all'owner.");
+      try {
+        if (actUrl) {
+          sessionStorage.setItem("lmw_last_activation_url", actUrl);
+        }
+        sessionStorage.setItem("lmw_last_activation_email", inviteEmail);
+        if (clientId) {
+          sessionStorage.setItem(
+            "lmw_last_client_id",
+            String(clientId),
+          );
+        }
+      } catch {
+        // ignore
+      }
+      try {
+        localStorage.setItem("lmw_after_signup_payment", "1");
+        localStorage.setItem("lmw_autocheckout", "1");
+      } catch {
+        // ignore
+      }
+      navigate("/activation-pending", {
+        replace: true,
+        state: {
+          activationUrl: actUrl,
+          email: inviteEmail,
+          clientId,
+        },
+      });
+      return;
     } catch (e: any) {
       const status = e?.response?.status;
       if (status === 409) {

@@ -3,8 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
+import {
+  changeOwnerEmail,
+  resendOwnerInvite,
+} from "@/lib/publicAuth.service";
 
-type LocationState = { activationUrl?: string; email?: string } | null;
+type LocationState = { activationUrl?: string; email?: string; clientId?: string } | null;
 
 function parseActivation(url?: string) {
   try {
@@ -42,11 +46,39 @@ export default function ActivationPending() {
 
   const activationUrl = state?.activationUrl || fallbackUrl;
   const email = state?.email || fallbackEmail;
+  const fallbackClientId = useMemo(() => {
+    try {
+      return (
+        sessionStorage.getItem("lmw_last_client_id") ||
+        localStorage.getItem("lmw_client_id") ||
+        localStorage.getItem("lmw_tenant_id") ||
+        undefined
+      );
+    } catch {
+      return undefined;
+    }
+  }, []);
+  const clientId = state?.clientId || fallbackClientId;
   const parsed = useMemo(() => parseActivation(activationUrl), [activationUrl]);
+  const exposeActivationUrls =
+    String(
+      ((import.meta as any).env?.VITE_EXPOSE_ACTIVATION_URLS ??
+        (import.meta as any).env?.EXPOSE_ACTIVATION_URLS ??
+        "") as string,
+    )
+      .toLowerCase()
+      .trim() === "true";
+  const showActivationDebug = !!(
+    activationUrl &&
+    exposeActivationUrls &&
+    (import.meta as any).env?.DEV
+  );
 
   const [resendMsg, setResendMsg] = useState<string | null>(null);
   const [resendErr, setResendErr] = useState<string | null>(null);
   const [emailInput, setEmailInput] = useState<string>(email || "");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [changingEmail, setChangingEmail] = useState(false);
 
   // Log immediato al mount se ci sono selector/token
   useEffect(() => {
@@ -58,32 +90,64 @@ export default function ActivationPending() {
     if (email && !emailInput) setEmailInput(email);
   }, [email, emailInput]);
 
-  function resendMail() {
-    setResendMsg(null);
-    setResendErr(null);
-    if (!activationUrl) {
-      setResendErr("Link di attivazione non disponibile. Ripeti la registrazione.");
-      console.error("[Activation] Nessun activationUrl per reinvio simulato.");
-      return;
+  function mapError(e: any): string {
+    const status = e?.status || e?.response?.status;
+    const message = e?.data?.message || e?.response?.data?.message || e?.message;
+    if (status === 404) {
+      return "Non ho trovato un owner in attesa per questa azienda. Ripeti la registrazione o contatta il supporto.";
     }
-    console.log("[Activation] Reinvia simulato - selector/token:", parsed);
-    setResendMsg("Reinvio simulato. Selector/token stampati in console.");
+    if (status === 409) {
+      return "Questa email risulta gia' associata al tenant. Inserisci un altro indirizzo.";
+    }
+    return message || "Impossibile completare la richiesta. Riprova piu' tardi.";
   }
 
-  function saveEmail(e: React.FormEvent) {
+  async function resendMail() {
+    setResendMsg(null);
+    setResendErr(null);
+    if (!clientId) {
+      setResendErr("Non ho il riferimento azienda (clientId). Ripeti la registrazione.");
+      return;
+    }
+    setResendLoading(true);
+    try {
+      await resendOwnerInvite({ clientId, email: emailInput.trim() || undefined });
+      setResendMsg("Nuovo invito inviato. Controlla la casella di posta.");
+    } catch (e: any) {
+      setResendErr(mapError(e));
+    } finally {
+      setResendLoading(false);
+    }
+  }
+
+  async function saveEmail(e: React.FormEvent) {
     e.preventDefault();
+    setResendMsg(null);
+    setResendErr(null);
     const next = emailInput.trim();
-    if (!next) {
+    if (!next || !/\S+@\S+\.\S+/.test(next)) {
       setResendErr("Inserisci un indirizzo email valido.");
       return;
     }
-    try {
-      sessionStorage.setItem("lmw_last_activation_email", next);
-    } catch {
-      /* ignore */
+    if (!clientId) {
+      setResendErr("Non ho il riferimento azienda (clientId). Ripeti la registrazione.");
+      return;
     }
-    setResendMsg(`Email aggiornata a ${next}.`);
-    setResendErr(null);
+    setChangingEmail(true);
+    try {
+      await changeOwnerEmail({ clientId, newEmail: next });
+      try {
+        sessionStorage.setItem("lmw_last_activation_email", next);
+      } catch {
+        /* ignore */
+      }
+      setEmailInput(next);
+      setResendMsg("Email aggiornata. Ti abbiamo inviato un nuovo link di attivazione.");
+    } catch (err: any) {
+      setResendErr(mapError(err));
+    } finally {
+      setChangingEmail(false);
+    }
   }
 
   return (
@@ -114,9 +178,7 @@ export default function ActivationPending() {
 
             <Alert variant="info" className="mb-4">
               <div className="fw-semibold mb-1">Non hai ricevuto la mail?</div>
-              <div className="small mb-2">
-                Controlla lo spam. Per i test puoi usare "Reinvia mail": stampa subito selector/token in console.
-              </div>
+              <div className="small mb-2">Controlla lo spam. Puoi reinviare l'invito o correggere l'indirizzo email.</div>
               <div className="mb-3 p-3 rounded bg-white shadow-sm">
                 <div className="fw-semibold small mb-2">Correggi l'indirizzo email</div>
                 <form className="d-flex flex-column flex-md-row gap-2" onSubmit={saveEmail} noValidate>
@@ -129,23 +191,32 @@ export default function ActivationPending() {
                     required
                     style={{ maxWidth: 360 }}
                   />
-                  <Button variant="outline-secondary" type="submit">
-                    Salva
+                  <Button variant="outline-secondary" type="submit" disabled={changingEmail || resendLoading}>
+                    {changingEmail ? "Aggiornamento..." : "Aggiorna email"}
                   </Button>
                 </form>
                 <div className="text-muted small mt-2">
-                  Se l'indirizzo era errato, aggiorna qui e richiedi un nuovo invio.
+                  Se l'indirizzo era errato, lo aggiorniamo e inviamo un nuovo link.
                 </div>
               </div>
-              {activationUrl ? (
+              {clientId ? (
                 <div className="d-flex gap-2 flex-wrap align-items-center">
-                  <Button variant="primary" onClick={resendMail}>
-                    Reinvia mail
+                  <Button variant="primary" onClick={resendMail} disabled={resendLoading || changingEmail}>
+                    {resendLoading ? "Invio in corso..." : "Reinvia mail"}
                   </Button>
+                  <div className="text-muted small">Reinviamo usando il clientId salvato dopo la registrazione.</div>
                 </div>
               ) : (
                 <div className="text-muted small">
-                  Non ho potuto recuperare il link di attivazione. Ripeti la registrazione o richiedi un nuovo invito.
+                  Non ho potuto recuperare i dati della registrazione (clientId mancante). Ripeti il signup per richiedere un nuovo invito.
+                </div>
+              )}
+              {showActivationDebug && (
+                <div className="mt-3 p-3 rounded bg-white border">
+                  <div className="fw-semibold small mb-2">Link di attivazione (debug dev)</div>
+                  <a className="btn btn-sm btn-outline-primary" href={activationUrl} target="_blank" rel="noreferrer">
+                    Apri attivazione
+                  </a>
                 </div>
               )}
               {resendMsg && <div className="text-success small mt-2 mb-0">{resendMsg}</div>}

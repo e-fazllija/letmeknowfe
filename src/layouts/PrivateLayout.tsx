@@ -95,7 +95,7 @@ export function PrivateLayout() {
                       const ready = Array.isArray(u?.permissions);
                       const email = ready ? u?.email ?? "?" : "?";
                       const role = ready ? u?.role ?? "?" : "?";
-                      return <span>{email} � {role}</span>;
+                      return <span>{email} - {role}</span>;
                     })()}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
@@ -123,7 +123,7 @@ export function PrivateLayout() {
                 borderBottom: "1px solid #f1e2a8",
               }}
             >
-              <strong>Modalit� Auditore - sola lettura</strong>
+              <strong>Modalità Auditore - sola lettura</strong>
             </div>
           )}
 

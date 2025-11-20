@@ -50,7 +50,7 @@ export type SignupPublicClientRes = {
   client?: { id: string; companyName: string; contactEmail: string; employeeRange: EmployeeRange };
   subscription?: { id: string; status: string };
   message?: string;
-  ownerInvite?: { activationUrl?: string };
+  ownerInvite?: { activationUrl?: string; email?: string };
 };
 
 function ensureIdempotencyKey(maybe?: string) {
