@@ -1,6 +1,7 @@
 // src/pages/RegisterClient.tsx
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
@@ -55,7 +56,20 @@ function makeIdem() {
   }
 }
 
+function logActivationDebug(url?: string) {
+  if (!url) return;
+  try {
+    const u = new URL(url);
+    const selector = u.searchParams.get("selector") || "";
+    const token = u.searchParams.get("token") || "";
+    console.log("[Activation] selector/token ricevuti:", { selector, token });
+  } catch {
+    console.log("[Activation] activationUrl (parse fallita):", url);
+  }
+}
+
 export default function RegisterClient() {
+  const navigate = useNavigate();
   const [form, setForm] = useState<FormState>({
     companyName: "",
     contactEmail: "",
@@ -187,17 +201,29 @@ export default function RegisterClient() {
       const res = await signupPublicClient(payload);
       const actUrl = (res as any)?.ownerInvite
         ?.activationUrl as string | undefined;
+      const contactEmail = form.contactEmail.trim();
+
+      logActivationDebug(actUrl);
 
       if (actUrl) {
         setActivationUrl(actUrl);
+        try {
+          sessionStorage.setItem("lmw_last_activation_url", actUrl);
+          sessionStorage.setItem("lmw_last_activation_email", contactEmail);
+        } catch {
+          // ignore
+        }
         try {
           localStorage.setItem("lmw_after_signup_payment", "1");
           localStorage.setItem("lmw_autocheckout", "1");
         } catch {
           // ignore
         }
-        // porta subito l'utente alla pagina di attivazione
-        window.location.href = actUrl;
+        navigate("/activation-pending", {
+          replace: true,
+          state: { activationUrl: actUrl, email: contactEmail },
+        });
+        return;
       }
 
       setOkMsg("Azienda creata. Abbiamo inviato l'invito all'owner.");
@@ -572,4 +598,3 @@ export default function RegisterClient() {
     </div>
   );
 }
-
