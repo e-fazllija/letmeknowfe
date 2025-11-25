@@ -1,16 +1,27 @@
 /* ===================== THEME / VARIABILI ===================== */
 :root{
-  --lmw-sidebar-bg: #0f172a;    /* sfondo sidebar (scuro) */
+  --lmw-sidebar-start: #0f172a;
+  --lmw-sidebar-mid: #0f4743;
+  --lmw-sidebar-end: #0f766e;
   --lmw-sidebar-fg: #e5e7eb;    /* testo principale */
   --lmw-sidebar-muted: #cbd5e1; /* testo secondario */
   --lmw-sidebar-accent: #0d6efd;/* accento/voce attiva */
+  --lmw-surface: #ffffff;
+  --lmw-surface-muted: #f8fafc;
+  --lmw-ink: #0f172a;
+  --lmw-ink-soft: #475569;
+  --lmw-shadow-soft: 0 18px 48px rgba(15, 23, 42, 0.12);
+  --lmw-radius: 18px;
 }
 
 /* ===================== STRUTTURA SIDEBAR ===================== */
 .sidebar-col{
-  background: var(--lmw-sidebar-bg);
+  background:
+    radial-gradient(circle at 18% 22%, rgba(226, 252, 247, 0.08), transparent 42%),
+    linear-gradient(180deg, var(--lmw-sidebar-start) 0%, var(--lmw-sidebar-mid) 55%, var(--lmw-sidebar-end) 100%);
   color: var(--lmw-sidebar-fg);
   min-height: 100vh;
+  box-shadow: 6px 0 24px rgba(15, 23, 42, 0.18);
 }
 .sidebar{
   background: transparent !important;
@@ -21,6 +32,9 @@
   .sidebar{ position: sticky; top: 0; max-height: 100vh; overflow-y: auto; }
 }
 .sidebar .border-bottom{ border-color: rgba(255,255,255,.10) !important; }
+@media (max-width: 767.98px) {
+  .sidebar-col{ box-shadow: none; }
+}
 
 /* ===================== LOGO ===================== */
 .sidebar-logo{
@@ -45,7 +59,7 @@
   color: var(--lmw-sidebar-muted);
   border: 0;
   border-radius: 0;
-  padding: .75rem 1rem;
+  padding: .8rem 1rem;
   transition: background .15s ease, color .15s ease;
 }
 .sidebar .list-group-item:hover{
@@ -53,7 +67,7 @@
   color: var(--lmw-sidebar-fg);
 }
 .sidebar .list-group-item.active{
-  background: rgba(13,110,253,.18);
+  background: rgba(255,255,255,.08);
   color: #fff;
   border-left: 3px solid var(--lmw-sidebar-accent);
 }
@@ -77,6 +91,9 @@
   --bs-btn-hover-color: #343a40;
   --bs-btn-hover-border-color: #b8bec4;
 }
+.btn{ border-radius: 999px; }
+.form-control,
+.form-select{ border-radius: 10px; }
 
 /* ===================== FORM LOOK ===================== */
 .form-label{ font-weight: 600; color: #111827; }
@@ -99,3 +116,37 @@
 /* ===================== UTILS ===================== */
 .container-narrow{ max-width: 860px; margin: 0 auto; }
 .dropzone{ border: 2px dashed #c7ccd1; padding: 12px; border-radius: .5rem; background: #f8f9fa; }
+
+/* ===================== CARDS / HERO ===================== */
+.widget-shell{ background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%); min-height: 100vh; padding: 16px 0; }
+.widget-hero{
+  background: linear-gradient(120deg, rgba(15, 118, 110, 0.14), rgba(59, 130, 246, 0.12));
+  border: 1px solid #dfe7f3;
+  border-radius: 22px;
+  padding: 20px 22px;
+  box-shadow: var(--lmw-shadow-soft);
+}
+.eyebrow{
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  font-size: .72rem;
+  color: var(--lmw-ink-soft);
+  margin-bottom: 6px;
+}
+.badge-soft{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px dashed #d8dee9;
+  background: var(--lmw-surface-muted);
+  font-weight: 600;
+  color: var(--lmw-ink-soft);
+}
+.info-card{
+  background: var(--lmw-surface);
+  border: 1px solid #d9e1ec;
+  border-radius: var(--lmw-radius);
+  box-shadow: var(--lmw-shadow-soft);
+}

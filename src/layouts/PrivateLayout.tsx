@@ -36,16 +36,40 @@ export function PrivateLayout() {
   // Stili (layout: sidebar a sinistra full-height, navbar scura a destra)
   useEffect(() => {
     const css = `
-      :root { --lmw-dark: #111827; }
+      :root {
+        --lmw-dark: #111827;
+        --lmw-emerald-start: #0f172a;
+        --lmw-emerald-end: #0f766e;
+        --lmw-emerald-soft: #0d8a7e;
+        --lmw-emerald-mid: #0f4743;
+      }
       .lmw-shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
       @media (max-width: 991.98px) { .lmw-shell { grid-template-columns: 220px 1fr; } }
       @media (max-width: 767.98px) { .lmw-shell { grid-template-columns: 1fr; } }
-      .lmw-sidebar { background: var(--lmw-dark); color: #fff; height: 100vh; position: sticky; top: 0; overflow: auto; padding: 1rem; }
-      .lmw-sidebar .nav-link { color:#cbd5e1; font-weight:600; }
+      .lmw-sidebar {
+        background:
+          radial-gradient(circle at 18% 22%, rgba(226, 252, 247, 0.08), transparent 40%),
+          linear-gradient(180deg, var(--lmw-emerald-start) 0%, var(--lmw-emerald-mid) 58%, var(--lmw-emerald-end) 100%);
+        color: #fff;
+        height: 100vh;
+        position: sticky;
+        top: 0;
+        overflow: auto;
+        padding: 1rem;
+        box-shadow: 6px 0 24px rgba(15, 23, 42, 0.18);
+      }
+      .lmw-sidebar .nav-link { color:#dbeafe; font-weight:600; }
       .lmw-sidebar .nav-link:hover { color:#fff; }
-      .lmw-sidebar .nav-link.active { color:#fff; background:rgba(255,255,255,.08); border-radius:.375rem; }
+      .lmw-sidebar .nav-link.active { color:#fff; background:rgba(255,255,255,.12); border-radius:.375rem; }
       .lmw-main { display:flex; flex-direction:column; min-height:100vh; background:#f8fafc; }
-      .lmw-topbar { background: var(--lmw-dark) !important; }
+      .lmw-topbar {
+        background:
+          linear-gradient(135deg, var(--lmw-emerald-start) 0%, var(--lmw-emerald-end) 60%, var(--lmw-emerald-soft) 100%) !important;
+        position: sticky;
+        top: 0;
+        z-index: 1040;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+      }
       .lmw-content { flex:1 1 auto; padding:1rem; }
       @media (max-width: 767.98px) { .lmw-sidebar { height:auto; position:static; } }
     `;

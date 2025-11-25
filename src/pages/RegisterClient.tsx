@@ -7,6 +7,9 @@ import Alert from "react-bootstrap/Alert";
 import Card from "react-bootstrap/Card";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
+import Container from "react-bootstrap/Container";
+import brand from "@/assets/logo-superuser.svg";
+import logoDark from "@/assets/logo-transparent-dark.png";
 import {
   signupPublicClient,
   type EmployeeRange,
@@ -244,7 +247,7 @@ export default function RegisterClient() {
     } catch (e: any) {
       const status = e?.response?.status;
       if (status === 409) {
-        setErrMsg("Esiste già un account aziendale con questi dati.");
+        setErrMsg("Esiste gia un account aziendale con questi dati.");
       } else {
         setErrMsg(
           e?.response?.data?.message ||
@@ -258,357 +261,412 @@ export default function RegisterClient() {
   }
 
   return (
-    <div className="container py-4">
-      <h1 className="mb-3">Registrazione Cliente</h1>
-      <p className="text-muted">
-        Compila i dati aziendali e di fatturazione. Invieremo un link di
-        attivazione all&apos;owner.
-      </p>
-      <Card className="shadow-sm">
-        <Card.Body>
-          {okMsg && (
-            <Alert
-              variant="success"
-              className="mb-3"
-              style={{ whiteSpace: "pre-line" }}
-            >
-              {okMsg}
-            </Alert>
-          )}
-          {activationUrl && (
-            <div className="alert alert-info d-flex justify-content-between align-items-center">
-              <div>Link di attivazione disponibile (dev).</div>
-              <a
-                className="btn btn-sm btn-primary"
-                href={activationUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Apri attivazione
-              </a>
+    <div className="page-shell">
+      <Container>
+        <div className="page-hero mb-3">
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div>
+              <div className="eyebrow">Onboarding</div>
+              <h3 className="fw-bold mb-1">Registrazione Cliente</h3>
+              <p className="text-secondary mb-0">
+                Compila i dati aziendali e di fatturazione: l&apos;owner ricevera il link di attivazione.
+              </p>
             </div>
-          )}
-          {errMsg && (
-            <Alert
-              variant="danger"
-              className="mb-3"
-              style={{ whiteSpace: "pre-line" }}
-            >
-              {errMsg}
-            </Alert>
-          )}
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <div className="metric-pill">
+                <span className="text-success">*</span>
+                <span>Passo</span>
+                <strong>1</strong>
+              </div>
+              <div className="metric-pill">
+                <span className="text-primary">*</span>
+                <span>Checkout</span>
+                <strong>Stripe</strong>
+              </div>
+              <span className="badge-soft">MFA pronto all&apos;uso</span>
+            </div>
+          </div>
+        </div>
 
-          <Form onSubmit={onSubmit} noValidate>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Ragione sociale *</Form.Label>
-                  <Form.Control
-                    value={form.companyName}
-                    onChange={(e) => set("companyName", e.target.value)}
-                    placeholder="Acme S.p.A."
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email contatto (owner) *</Form.Label>
-                  <Form.Control
-                    type="email"
-                    value={form.contactEmail}
-                    onChange={(e) => set("contactEmail", e.target.value)}
-                    placeholder="owner@acme.it"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            {/* Password owner (solo UI; payload condizionato da INLINE) */}
-            <Row>
-              <Col md={6}>
-                <div className="mb-3">
-                  <label className="form-label">
-                    Password owner{" "}
-                    {INLINE
-                      ? "(richiesta per attivazione inline)"
-                      : "(verrà ignorata dal payload)"}
-                  </label>
-                  <div className="input-group">
-                    <input
-                      type={showPwd ? "text" : "password"}
-                      className="form-control"
-                      placeholder="Min 8 caratteri"
-                      value={ownerPassword}
-                      onChange={(e) =>
-                        setOwnerPassword(e.target.value)
-                      }
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={() => setShowPwd((s) => !s)}
-                      aria-label="Mostra/Nascondi password"
-                    >
-                      {showPwd ? "Nascondi" : "Mostra"}
-                    </button>
-                  </div>
+        <Row className="g-3">
+          <Col lg={4}>
+            <Card className="info-card h-100">
+              <Card.Body>
+                <div className="d-flex align-items-center gap-2 mb-3">
+                  <img src={logoDark} alt="LetMeKnow" height={42} />
+                  <span className="label-muted">Guida rapida</span>
                 </div>
-              </Col>
-              <Col md={6}>
-                <div className="mb-3">
-                  <label className="form-label">
-                    Conferma password
-                  </label>
-                  <div className="input-group">
-                    <input
-                      type={showPwd2 ? "text" : "password"}
-                      className="form-control"
-                      placeholder="Ripeti la password"
-                      value={ownerPassword2}
-                      onChange={(e) =>
-                        setOwnerPassword2(e.target.value)
-                      }
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={() => setShowPwd2((s) => !s)}
-                      aria-label="Mostra/Nascondi conferma"
-                    >
-                      {showPwd2 ? "Nascondi" : "Mostra"}
-                    </button>
-                  </div>
-                  {formError && (
-                    <div className="form-text text-danger">
-                      {formError}
-                    </div>
-                  )}
+                <p className="text-secondary small mb-3">
+                  Inserisci i dati aziendali, fatturazione e l&apos;email dell&apos;owner. Il pagamento Stripe avverra dopo l&apos;accesso e l&apos;attivazione.
+                </p>
+                <ul className="text-secondary small mb-3">
+                  <li>Validazione P.IVA/CF, CAP e SDI</li>
+                  <li>Password owner inline (se abilitata)</li>
+                  <li>Attivazione e MFA gestiti dal portale</li>
+                </ul>
+                <div className="badge-soft d-inline-flex align-items-center gap-2">
+                  <img src={brand} alt="LetMeKnow" width={18} height={18} />
+                  <span>LetMeKnow Platform</span>
                 </div>
-              </Col>
-            </Row>
+              </Card.Body>
+            </Card>
+          </Col>
 
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Numero dipendenti *</Form.Label>
-                  <Form.Select
-                    value={form.employeeRange}
-                    onChange={(e) =>
-                      set("employeeRange", e.target.value as EmployeeRange)
-                    }
+          <Col lg={8}>
+            <Card className="info-card">
+              <Card.Body>
+                <div className="d-flex align-items-center gap-2 mb-3">
+                  <span className="badge-soft">Step</span>
+                  <span className="label-muted">Dati cliente</span>
+                </div>
+
+                {okMsg && (
+                  <Alert
+                    variant="success"
+                    className="mb-3"
+                    style={{ whiteSpace: "pre-line" }}
                   >
-                    {EMPLOYEE_RANGE.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <hr />
-            <h5 className="mt-2">Dati di fatturazione</h5>
-            <Row className="mt-1">
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>P.IVA / CF *</Form.Label>
-                  <Form.Control
-                    value={form.billingTaxId}
-                    onChange={(e) =>
-                      set("billingTaxId", e.target.value)
-                    }
-                    placeholder="12345678901"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email fatturazione *</Form.Label>
-                  <Form.Control
-                    type="email"
-                    value={form.billingEmail}
-                    onChange={(e) =>
-                      set("billingEmail", e.target.value)
-                    }
-                    placeholder="fatture@acme.it"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>PEC</Form.Label>
-                  <Form.Control
-                    value={form.billingPec}
-                    onChange={(e) =>
-                      set("billingPec", e.target.value)
-                    }
-                    placeholder="pec@pec.it"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Codice SDI (7)</Form.Label>
-                  <Form.Control
-                    value={form.billingSdiCode}
-                    onChange={(e) =>
-                      set(
-                        "billingSdiCode",
-                        e.target.value.toUpperCase(),
-                      )
-                    }
-                    placeholder="AAAAAAA"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={12}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Indirizzo *</Form.Label>
-                  <Form.Control
-                    value={form.billingAddressLine1}
-                    onChange={(e) =>
-                      set("billingAddressLine1", e.target.value)
-                    }
-                    placeholder="Via Roma 1"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={3}>
-                <Form.Group className="mb-3">
-                  <Form.Label>CAP *</Form.Label>
-                  <Form.Control
-                    value={form.billingZip}
-                    onChange={(e) =>
-                      set("billingZip", e.target.value)
-                    }
-                    placeholder="00100"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={5}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Città *</Form.Label>
-                  <Form.Control
-                    value={form.billingCity}
-                    onChange={(e) =>
-                      set("billingCity", e.target.value)
-                    }
-                    placeholder="Roma"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={2}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Prov *</Form.Label>
-                  <Form.Control
-                    value={form.billingProvince}
-                    onChange={(e) =>
-                      set(
-                        "billingProvince",
-                        e.target.value.toUpperCase(),
-                      )
-                    }
-                    placeholder="RM"
-                    maxLength={2}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={2}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nazione *</Form.Label>
-                  <Form.Control
-                    value={form.billingCountry}
-                    onChange={(e) =>
-                      set("billingCountry", e.target.value)
-                    }
-                    placeholder="Italia"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <hr />
-            <h5 className="mt-2">Sottoscrizione</h5>
-            <Row className="mt-1">
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Importo *</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    value={form.amount}
-                    readOnly
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Valuta</Form.Label>
-                  <Form.Control value={form.currency} readOnly />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Durata</Form.Label>
-                  <Form.Control value="ANNUALE" readOnly />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Rateizzazione</Form.Label>
-                  <Form.Control
-                    value="Pagamento in un'unica soluzione (annuale) tramite Stripe"
-                    readOnly
-                  />
-                  <div className="form-text">
-                    Il pagamento avverrà con carta tramite Stripe dopo
-                    l&apos;attivazione dell&apos;account, dalla sezione{" "}
-                    <strong>Impostazioni &gt; Billing</strong>.
+                    {okMsg}
+                  </Alert>
+                )}
+                {activationUrl && (
+                  <div className="alert alert-info d-flex justify-content-between align-items-center">
+                    <div>Link di attivazione disponibile (dev).</div>
+                    <a
+                      className="btn btn-sm btn-primary"
+                      href={activationUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Apri attivazione
+                    </a>
                   </div>
-                </Form.Group>
-              </Col>
-            </Row>
+                )}
+                {errMsg && (
+                  <Alert
+                    variant="danger"
+                    className="mb-3"
+                    style={{ whiteSpace: "pre-line" }}
+                  >
+                    {errMsg}
+                  </Alert>
+                )}
 
-            <div className="d-flex gap-2">
-              <Button
-                type="submit"
-                variant="dark"
-                disabled={loading}
-              >
-                {loading ? "Invio…" : "Registra azienda"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline-secondary"
-                onClick={() => window.location.reload()}
-                disabled={loading}
-              >
-                Annulla
-              </Button>
-            </div>
-          </Form>
-        </Card.Body>
-      </Card>
+                <Form onSubmit={onSubmit} noValidate>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Ragione sociale *</Form.Label>
+                        <Form.Control
+                          value={form.companyName}
+                          onChange={(e) => set("companyName", e.target.value)}
+                          placeholder="Acme S.p.A."
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Email contatto (owner) *</Form.Label>
+                        <Form.Control
+                          type="email"
+                          value={form.contactEmail}
+                          onChange={(e) => set("contactEmail", e.target.value)}
+                          placeholder="owner@acme.it"
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+
+                  {/* Password owner (solo UI; payload condizionato da INLINE) */}
+                  <Row>
+                    <Col md={6}>
+                      <div className="mb-3">
+                        <label className="form-label">
+                          Password owner{" "}
+                          {INLINE
+                            ? "(richiesta per attivazione inline)"
+                            : "(verra ignorata dal payload)"}
+                        </label>
+                        <div className="input-group">
+                          <input
+                            type={showPwd ? "text" : "password"}
+                            className="form-control"
+                            placeholder="Min 8 caratteri"
+                            value={ownerPassword}
+                            onChange={(e) =>
+                              setOwnerPassword(e.target.value)
+                            }
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary"
+                            onClick={() => setShowPwd((s) => !s)}
+                            aria-label="Mostra/Nascondi password"
+                          >
+                            {showPwd ? "Nascondi" : "Mostra"}
+                          </button>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="mb-3">
+                        <label className="form-label">
+                          Conferma password
+                        </label>
+                        <div className="input-group">
+                          <input
+                            type={showPwd2 ? "text" : "password"}
+                            className="form-control"
+                            placeholder="Ripeti la password"
+                            value={ownerPassword2}
+                            onChange={(e) =>
+                              setOwnerPassword2(e.target.value)
+                            }
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary"
+                            onClick={() => setShowPwd2((s) => !s)}
+                            aria-label="Mostra/Nascondi conferma"
+                          >
+                            {showPwd2 ? "Nascondi" : "Mostra"}
+                          </button>
+                        </div>
+                        {formError && (
+                          <div className="form-text text-danger">
+                            {formError}
+                          </div>
+                        )}
+                      </div>
+                    </Col>
+                  </Row>
+
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Numero dipendenti *</Form.Label>
+                        <Form.Select
+                          value={form.employeeRange}
+                          onChange={(e) =>
+                            set("employeeRange", e.target.value as EmployeeRange)
+                          }
+                        >
+                          {EMPLOYEE_RANGE.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+
+                  <hr />
+                  <h5 className="mt-2">Dati di fatturazione</h5>
+                  <Row className="mt-1">
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>P.IVA / CF *</Form.Label>
+                        <Form.Control
+                          value={form.billingTaxId}
+                          onChange={(e) =>
+                            set("billingTaxId", e.target.value)
+                          }
+                          placeholder="12345678901"
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Email fatturazione *</Form.Label>
+                        <Form.Control
+                          type="email"
+                          value={form.billingEmail}
+                          onChange={(e) =>
+                            set("billingEmail", e.target.value)
+                          }
+                          placeholder="fatture@acme.it"
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>PEC</Form.Label>
+                        <Form.Control
+                          value={form.billingPec}
+                          onChange={(e) =>
+                            set("billingPec", e.target.value)
+                          }
+                          placeholder="pec@pec.it"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Codice SDI (7)</Form.Label>
+                        <Form.Control
+                          value={form.billingSdiCode}
+                          onChange={(e) =>
+                            set(
+                              "billingSdiCode",
+                              e.target.value.toUpperCase(),
+                            )
+                          }
+                          placeholder="AAAAAAA"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col md={12}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Indirizzo *</Form.Label>
+                        <Form.Control
+                          value={form.billingAddressLine1}
+                          onChange={(e) =>
+                            set("billingAddressLine1", e.target.value)
+                          }
+                          placeholder="Via Roma 1"
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col md={3}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>CAP *</Form.Label>
+                        <Form.Control
+                          value={form.billingZip}
+                          onChange={(e) =>
+                            set("billingZip", e.target.value)
+                          }
+                          placeholder="00100"
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={5}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Citta *</Form.Label>
+                        <Form.Control
+                          value={form.billingCity}
+                          onChange={(e) =>
+                            set("billingCity", e.target.value)
+                          }
+                          placeholder="Roma"
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={2}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Prov *</Form.Label>
+                        <Form.Control
+                          value={form.billingProvince}
+                          onChange={(e) =>
+                            set(
+                              "billingProvince",
+                              e.target.value.toUpperCase(),
+                            )
+                          }
+                          placeholder="RM"
+                          maxLength={2}
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={2}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Nazione *</Form.Label>
+                        <Form.Control
+                          value={form.billingCountry}
+                          onChange={(e) =>
+                            set("billingCountry", e.target.value)
+                          }
+                          placeholder="Italia"
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+
+                  <hr />
+                  <h5 className="mt-2">Sottoscrizione</h5>
+                  <Row className="mt-1">
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Importo *</Form.Label>
+                        <Form.Control
+                          type="number"
+                          step="0.01"
+                          value={form.amount}
+                          readOnly
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Valuta</Form.Label>
+                        <Form.Control value={form.currency} readOnly />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Durata</Form.Label>
+                        <Form.Control value="ANNUALE" readOnly />
+                      </Form.Group>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Rateizzazione</Form.Label>
+                        <Form.Control
+                          value="Pagamento in un'unica soluzione (annuale) tramite Stripe"
+                          readOnly
+                        />
+                        <div className="form-text">
+                          Il pagamento avverra con carta tramite Stripe dopo
+                          l&apos;attivazione dell&apos;account, dalla sezione{" "}
+                          <strong>Impostazioni &gt; Billing</strong>.
+                        </div>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+
+                  <div className="d-flex gap-2">
+                    <Button
+                      type="submit"
+                      variant="dark"
+                      className="rounded-pill"
+                      disabled={loading}
+                    >
+                      {loading ? "Invio..." : "Registra azienda"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline-secondary"
+                      onClick={() => window.location.reload()}
+                      disabled={loading}
+                    >
+                      Annulla
+                    </Button>
+                  </div>
+                </Form>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      </Container>
     </div>
   );
 }

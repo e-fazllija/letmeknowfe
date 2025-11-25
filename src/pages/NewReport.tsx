@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,9 +24,7 @@ const SOURCE_LABELS: Record<(typeof REPORT_SOURCES)[number], string> = {
   OTHER: "OTHER",
 };
 
-// Schema form (legacy UI -> payload BE nel submit)
-// - Normalizza stringhe vuote a undefined per name
-// - Rende name obbligatorio solo se privacyMode === "CONFIDENZIALE" (1–160)
+// Schema form
 const BaseSchema = z
   .object({
     date: z.string().min(1, "Data obbligatoria"),
@@ -43,7 +41,6 @@ const BaseSchema = z
       )
       .optional(),
     title: z.string().trim().min(3, "Titolo minimo 3 caratteri"),
-    // Gli ID arrivano come string (coercion per sicurezza)
     department: z.coerce.string().min(1, "Seleziona un reparto"),
     category: z.coerce.string().min(1, "Seleziona una categoria"),
     description: z.string().trim().min(10, "Descrizione minima 10 caratteri"),
@@ -54,16 +51,13 @@ const BaseSchema = z
   .superRefine((data, ctx) => {
     if (data.privacyMode === "CONFIDENZIALE") {
       if (!data.name || (data.name.trim().length < 1 || data.name.trim().length > 160)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Inserisci un nominativo (1–160 caratteri)" });
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Inserisci un nominativo (1-160 caratteri)" });
       }
-      // Email non obbligatoria in modalità confidenziale (richiesta solo nominativo)
     }
   });
 
 type FormData = z.input<typeof BaseSchema>;
-
 const Schema = BaseSchema;
-
 const DEBUG_FORM = import.meta.env.VITE_DEBUG_REPORT_FORM === "true";
 
 export default function NewReport() {
@@ -75,26 +69,6 @@ export default function NewReport() {
   );
   const [modal, setModal] = useState<{ show: boolean; publicCode?: string; secret?: string }>({ show: false });
   const [lastCreatedId, setLastCreatedId] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    const css = `
-      .lmw-content { background:#fff; padding:1rem; border-radius:.5rem; }
-      .lmw-form label{ font-weight:600; color:#111827; }
-      .lmw-form .form-control, .lmw-form .form-select{
-        font-weight:600; color:#111827;
-        border-color:#273447; border-width:2px; box-shadow:none; background:#fff;
-      }
-      .lmw-form .form-control::placeholder{ color:#6b7280; font-weight:400; opacity:1; }
-      .lmw-form .form-control:focus, .lmw-form .form-select:focus{
-        border-color:#0d6efd; box-shadow:0 0 0 .2rem rgba(13,110,253,.15);
-      }
-    `;
-    const tag = document.createElement("style");
-    tag.setAttribute("data-lmw", "new-report-css");
-    tag.innerHTML = css;
-    document.head.appendChild(tag);
-    return () => tag.remove();
-  }, []);
 
   const { register, handleSubmit, watch, reset, getValues, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(Schema),
@@ -118,9 +92,8 @@ export default function NewReport() {
   const selectedDept = watch("department");
   const { categories, loading: loadingCats, error: errorCats } = useCategories(String(selectedDept || "") || undefined);
 
-  // Lookups
+  // reset categoria se cambio reparto
   useEffect(() => {
-    // alla variazione reparto, resetta la categoria scelta
     try {
       const current = getValues();
       reset({ ...current, category: "" }, { keepErrors: true, keepDirty: true });
@@ -134,20 +107,16 @@ export default function NewReport() {
       const src = (REPORT_SOURCES as readonly string[]).includes(String(data.source)) ? data.source : "OTHER";
       const prv = String(data.privacyMode) === "CONFIDENZIALE" ? "CONFIDENZIALE" : "ANONIMO";
 
-      // Mapping form -> payload FE: Oggetto -> title, Descrizione -> summary
       const payload = {
         date: new Date(data.date).toISOString(),
         source: src,
         privacy: prv,
         title: (data.title ?? "").trim(),
-        // Se in futuro esiste form.summary, usa quello; altrimenti mappa description -> summary
         summary: ((data as any).summary?.trim?.() || data.description?.trim() || ""),
         departmentId: data.department,
         categoryId: data.category,
       } as const;
 
-
-      // Allegati via presign -> PUT -> finalize -> raccolta metadati
       let attachments: Array<{ fileName:string; mimeType:string; sizeBytes:number; storageKey:string; proof?:string }> = [];
       try {
         const filesList: FileList | undefined = (data as any)?.attachments as FileList | undefined;
@@ -176,7 +145,6 @@ export default function NewReport() {
           attachments.push({ fileName: file.name, mimeType: file.type || "application/octet-stream", sizeBytes: file.size, storageKey: p.storageKey, ...(p.proof ? { proof: p.proof } : {}) });
         }
       } catch (e) {
-        // Se fallisce la catena allegati, mostra errore specifico
         throw e;
       }
 
@@ -201,7 +169,6 @@ export default function NewReport() {
         setToast({ show: true, message: "Segnalazione creata (offline)", variant: "success" });
       }
 
-      // Reset: mantieni data/source/privacy, azzera il resto
       reset({
         date: data.date,
         source: data.source,
@@ -215,7 +182,6 @@ export default function NewReport() {
         consent: false,
         revealSecret: data.revealSecret,
       });
-      // opzionale: redirect alla lista dopo pochi secondi se non si mostra la modale
       if (!(data.revealSecret)) {
         const createdParam = lastCreatedId ? `?created=${encodeURIComponent(lastCreatedId)}` : "";
         navigate(`/reports${createdParam}` as any, { replace: true } as any);
@@ -234,161 +200,182 @@ export default function NewReport() {
   };
 
   return (
-    <div className="lmw-content">
-      <h2 className="mb-3">Nuova segnalazione</h2>
-
-      <Card className="shadow-sm">
-        <Card.Body className="lmw-form">
-          <Form onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate>
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group controlId="date">
-                  <Form.Label>Data</Form.Label>
-                  <Form.Control type="date" isInvalid={!!errors.date} {...register("date")} />
-                  <Form.Control.Feedback type="invalid">{errors.date?.message as string}</Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group controlId="source">
-                  <Form.Label>Fonte</Form.Label>
-                  <Form.Select isInvalid={!!errors.source} {...register("source")}>
-                    {(REPORT_SOURCES as readonly string[]).map((opt) => (
-                      <option key={opt} value={opt}>{SOURCE_LABELS[opt as keyof typeof SOURCE_LABELS] || opt}</option>
-                    ))}
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">{errors.source?.message as string}</Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Form.Group className="mb-3" controlId="privacyMode">
-              <Form.Label>Privacy del segnalante</Form.Label>
-              <Form.Select {...register("privacyMode")}>
-                {(REPORT_PRIVACY as readonly string[]).map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            {privacyMode === "CONFIDENZIALE" && (
-              <div className="p-3 border rounded mb-3 bg-light">
-                <Row>
-                  <Col md={12}>
-                    <Form.Group className="mb-3" controlId="name">
-                      <Form.Label>Nome e cognome</Form.Label>
-                      <Form.Control type="text" placeholder="Es. Mario Rossi" maxLength={160} isInvalid={!!errors.name} {...register("name")} />
-                      <Form.Control.Feedback type="invalid">{errors.name?.message as string}</Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
-                </Row>
+    <div className="page-shell">
+      <div className="container-fluid py-2">
+        <div className="page-hero mb-3">
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div>
+              <div className="eyebrow">Segnalazioni</div>
+              <h4 className="mb-1">Nuova segnalazione</h4>
+              <div className="text-secondary small">
+                Inserisci i dettagli e allega eventuali file.
               </div>
-            )}
-
-            <Form.Group className="mb-3" controlId="title">
-              <Form.Label>Oggetto</Form.Label>
-              <Form.Control type="text" placeholder="Oggetto della segnalazione" isInvalid={!!errors.title} {...register("title")} />
-              <Form.Control.Feedback type="invalid">{errors.title?.message as string}</Form.Control.Feedback>
-            </Form.Group>
-
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group controlId="department">
-                  <Form.Label>Reparto</Form.Label>
-                  {loadingDeps ? (
-                    <div className="form-control d-flex align-items-center" style={{ height: 38 }}>
-                      <Spinner size="sm" className="me-2" /> Caricamento¦
-                    </div>
-                  ) : (
-                    <Form.Select
-                      isInvalid={!!errors.department}
-                      {...register("department", {
-                        required: true,
-                        onChange: (_e) => {
-                          try {
-                            setValue("category", "", { shouldValidate: true });
-                          } catch {
-                            const current = getValues();
-                            reset({ ...current, category: "" }, { keepErrors: true, keepDirty: true });
-                          }
-                        },
-                      })}
-                      defaultValue=""
-                    >
-                      <option value="">Seleziona...</option>
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </Form.Select>
-                  )}
-                  {!loadingDeps && !departments.length && (
-                    <small className="text-danger">Nessun reparto disponibile</small>
-                  )}
-                  {errorDeps ? <small className="text-danger">{String(errorDeps)}</small> : null}
-                  <Form.Control.Feedback type="invalid">{errors.department?.message as string}</Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group controlId="category">
-                  <Form.Label>Categoria</Form.Label>
-                  {loadingCats ? (
-                    <div className="form-control d-flex align-items-center" style={{ height: 38 }}>
-                      <Spinner size="sm" className="me-2" /> Caricamento¦
-                    </div>
-                  ) : (
-                    <Form.Select isInvalid={!!errors.category} disabled={!categories.length} {...register("category", { required: true })} defaultValue="">
-                      <option value="">{selectedDept ? "Seleziona..." : "Seleziona prima un reparto"}</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </Form.Select>
-                  )}
-                  {!loadingCats && !!selectedDept && !categories.length && (
-                    <small className="text-danger">Nessuna categoria per il reparto selezionato</small>
-                  )}
-                  {errorCats ? <small className="text-danger">{String(errorCats)}</small> : null}
-                  <Form.Control.Feedback type="invalid">{errors.category?.message as string}</Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Form.Group className="mb-3" controlId="description">
-              <Form.Label>Descrizione</Form.Label>
-              <Form.Control as="textarea" rows={6} placeholder="Descrivi i fatti, contesto, luoghi, persone coinvolte, date..." isInvalid={!!errors.description} {...register("description")} />
-              <Form.Control.Feedback type="invalid">{errors.description?.message as string}</Form.Control.Feedback>
-            </Form.Group>
-
-            <Form.Group className="mb-3" controlId="attachments">
-              <Form.Label>Allegati</Form.Label>
-              <Form.Control type="file" multiple accept=".png,.jpg,.jpeg,.pdf,.txt,.mp3,.wav" disabled={!PRESIGN_ENABLED} title={PRESIGN_ENABLED ? undefined : "Funzione non disponibile"} {...register("attachments")} />
-              <div className="form-text">{PRESIGN_ENABLED ? "3 file, fino a ~10MB l'uno." : "Funzione non disponibile."}</div>
-            </Form.Group>
-
-            <Form.Group className="mb-3" controlId="revealSecret">
-              <Form.Check type="switch" label="Rivela la passphrase univoca al termine della creazione" {...register("revealSecret")} />
-            </Form.Group>
-
-            <Form.Group className="mb-4" controlId="consent">
-              <Form.Check type="checkbox" label="Dichiaro di aver letto e compreso l'informativa" isInvalid={!!errors.consent} {...register("consent")} />
-              {errors.consent && (<div className="invalid-feedback d-block">{errors.consent.message as string}</div>)}
-            </Form.Group>
-
-            <div className="d-flex gap-2">
-              <Button type="submit" variant="dark" disabled={isSubmitting || submitting} aria-busy={isSubmitting || submitting}>
-                {isSubmitting || submitting ? "Invio..." : "Crea segnalazione"}
-              </Button>
-              <Button type="button" variant="outline-secondary" onClick={() => reset()} disabled={isSubmitting || submitting}>
-                Annulla
-              </Button>
             </div>
-          </Form>
-          <ToastContainer position="bottom-end" className="p-3">
-            <Toast bg={toast.variant} onClose={() => setToast((t) => ({ ...t, show: false }))} show={toast.show} delay={2200} autohide>
-              <Toast.Body style={{ color: toast.variant === "danger" ? "#fff" : undefined }}>{toast.message}</Toast.Body>
-            </Toast>
-          </ToastContainer>
-        </Card.Body>
-      </Card>
-      {/* Success modal with publicCode + secret */}
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <Button size="sm" variant="outline-dark" className="rounded-pill" onClick={() => navigate("/reports")}>
+                Torna alle segnalazioni
+              </Button>
+              <span className="badge-soft">Max 3 file · 10MB</span>
+            </div>
+          </div>
+        </div>
+
+        <Card className="info-card">
+          <Card.Body className="lmw-form">
+            <div className="d-flex align-items-center gap-2 mb-3">
+              <span className="badge-soft">Form</span>
+              <span className="label-muted">Dati segnalazione</span>
+            </div>
+            <Form onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate>
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Form.Group controlId="date">
+                    <Form.Label>Data</Form.Label>
+                    <Form.Control type="date" isInvalid={!!errors.date} {...register("date")} />
+                    <Form.Control.Feedback type="invalid">{errors.date?.message as string}</Form.Control.Feedback>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group controlId="source">
+                    <Form.Label>Fonte</Form.Label>
+                    <Form.Select isInvalid={!!errors.source} {...register("source")}>
+                      {(REPORT_SOURCES as readonly string[]).map((opt) => (
+                        <option key={opt} value={opt}>{SOURCE_LABELS[opt as keyof typeof SOURCE_LABELS] || opt}</option>
+                      ))}
+                    </Form.Select>
+                    <Form.Control.Feedback type="invalid">{errors.source?.message as string}</Form.Control.Feedback>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3" controlId="privacyMode">
+                <Form.Label>Privacy del segnalante</Form.Label>
+                <Form.Select {...register("privacyMode")}>
+                  {(REPORT_PRIVACY as readonly string[]).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+
+              {privacyMode === "CONFIDENZIALE" && (
+                <div className="p-3 border rounded mb-3 bg-light">
+                  <Row>
+                    <Col md={12}>
+                      <Form.Group className="mb-3" controlId="name">
+                        <Form.Label>Nome e cognome</Form.Label>
+                        <Form.Control type="text" placeholder="Es. Mario Rossi" maxLength={160} isInvalid={!!errors.name} {...register("name")} />
+                        <Form.Control.Feedback type="invalid">{errors.name?.message as string}</Form.Control.Feedback>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </div>
+              )}
+
+              <Form.Group className="mb-3" controlId="title">
+                <Form.Label>Oggetto</Form.Label>
+                <Form.Control type="text" placeholder="Oggetto della segnalazione" isInvalid={!!errors.title} {...register("title")} />
+                <Form.Control.Feedback type="invalid">{errors.title?.message as string}</Form.Control.Feedback>
+              </Form.Group>
+
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Form.Group controlId="department">
+                    <Form.Label>Reparto</Form.Label>
+                    {loadingDeps ? (
+                      <div className="form-control d-flex align-items-center" style={{ height: 38 }}>
+                        <Spinner size="sm" className="me-2" /> Caricamento...
+                      </div>
+                    ) : (
+                      <Form.Select
+                        isInvalid={!!errors.department}
+                        {...register("department", {
+                          required: true,
+                          onChange: (_e) => {
+                            try {
+                              setValue("category", "", { shouldValidate: true });
+                            } catch {
+                              const current = getValues();
+                              reset({ ...current, category: "" }, { keepErrors: true, keepDirty: true });
+                            }
+                          },
+                        })}
+                        defaultValue=""
+                      >
+                        <option value="">Seleziona...</option>
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </Form.Select>
+                    )}
+                    {!loadingDeps && !departments.length && (
+                      <small className="text-danger">Nessun reparto disponibile</small>
+                    )}
+                    {errorDeps ? <small className="text-danger">{String(errorDeps)}</small> : null}
+                    <Form.Control.Feedback type="invalid">{errors.department?.message as string}</Form.Control.Feedback>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group controlId="category">
+                    <Form.Label>Categoria</Form.Label>
+                    {loadingCats ? (
+                      <div className="form-control d-flex align-items-center" style={{ height: 38 }}>
+                        <Spinner size="sm" className="me-2" /> Caricamento...
+                      </div>
+                    ) : (
+                      <Form.Select isInvalid={!!errors.category} disabled={!categories.length} {...register("category", { required: true })} defaultValue="">
+                        <option value="">{selectedDept ? "Seleziona..." : "Seleziona prima un reparto"}</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </Form.Select>
+                    )}
+                    {!loadingCats && !!selectedDept && !categories.length && (
+                      <small className="text-danger">Nessuna categoria per il reparto selezionato</small>
+                    )}
+                    {errorCats ? <small className="text-danger">{String(errorCats)}</small> : null}
+                    <Form.Control.Feedback type="invalid">{errors.category?.message as string}</Form.Control.Feedback>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3" controlId="description">
+                <Form.Label>Descrizione</Form.Label>
+                <Form.Control as="textarea" rows={6} placeholder="Descrivi i fatti, contesto, luoghi, persone coinvolte, date..." isInvalid={!!errors.description} {...register("description")} />
+                <Form.Control.Feedback type="invalid">{errors.description?.message as string}</Form.Control.Feedback>
+              </Form.Group>
+
+              <Form.Group className="mb-3" controlId="attachments">
+                <Form.Label>Allegati</Form.Label>
+                <Form.Control type="file" multiple accept=".png,.jpg,.jpeg,.pdf,.txt,.mp3,.wav" disabled={!PRESIGN_ENABLED} title={PRESIGN_ENABLED ? undefined : "Funzione non disponibile"} {...register("attachments")} />
+                <div className="form-text">{PRESIGN_ENABLED ? "3 file, fino a ~10MB l'uno." : "Funzione non disponibile."}</div>
+              </Form.Group>
+
+              <Form.Group className="mb-3" controlId="revealSecret">
+                <Form.Check type="switch" label="Rivela la passphrase univoca al termine della creazione" {...register("revealSecret")} />
+              </Form.Group>
+
+              <Form.Group className="mb-4" controlId="consent">
+                <Form.Check type="checkbox" label="Dichiaro di aver letto e compreso l'informativa" isInvalid={!!errors.consent} {...register("consent")} />
+                {errors.consent && (<div className="invalid-feedback d-block">{errors.consent.message as string}</div>)}
+              </Form.Group>
+
+              <div className="d-flex gap-2">
+                <Button type="submit" variant="dark" className="rounded-pill" disabled={isSubmitting || submitting} aria-busy={isSubmitting || submitting}>
+                  {isSubmitting || submitting ? "Invio..." : "Crea segnalazione"}
+                </Button>
+                <Button type="button" variant="outline-secondary" className="rounded-pill" onClick={() => reset()} disabled={isSubmitting || submitting}>
+                  Annulla
+                </Button>
+              </div>
+            </Form>
+            <ToastContainer position="bottom-end" className="p-3">
+              <Toast bg={toast.variant} onClose={() => setToast((t) => ({ ...t, show: false }))} show={toast.show} delay={2200} autohide>
+                <Toast.Body style={{ color: toast.variant === "danger" ? "#fff" : undefined }}>{toast.message}</Toast.Body>
+              </Toast>
+            </ToastContainer>
+          </Card.Body>
+        </Card>
+      </div>
       <Modal show={modal.show} onHide={() => { setModal({ show: false }); const createdParam = lastCreatedId ? `?created=${encodeURIComponent(lastCreatedId)}` : ""; navigate(`/reports${createdParam}`, { replace: true }); }} centered>
         <Modal.Header closeButton>
           <Modal.Title>Segnalazione creata</Modal.Title>
@@ -407,7 +394,3 @@ export default function NewReport() {
     </div>
   );
 }
-
-
-
-

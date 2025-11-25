@@ -639,100 +639,114 @@ const assigneeLabel: string = useMemo(() => {
 
   const titleMasked = safeTitle(report);
   const status = String(report.status || "");
+  const statusVariant =
+    status === "CLOSED"
+      ? "success"
+      : status === "IN_PROGRESS"
+      ? "primary"
+      : status === "NEED_INFO"
+      ? "info"
+      : status === "SUSPENDED"
+      ? "secondary"
+      : "warning";
   const hasAssignee = !!assigneeId;
   const statusOpen = status.toUpperCase() === "OPEN";
+  const createdLabel = report.createdAt ? new Date(report.createdAt).toLocaleString() : "-";
+  const reportIdLabel = (report as any)?.id || (report as any)?.reportId || "-";
+  const departmentLabel = (() => {
+    const ff = (report as any)?.department?.name || (report as any)?.departmentName;
+    if (ff) return String(ff);
+    const deptId = String((report as any)?.departmentId ?? (report as any)?.department?.id ?? "");
+    return deptNameMap.get(deptId) || "-";
+  })();
+  const categoryLabel = (() => {
+    const ff = (report as any)?.category?.name || (report as any)?.categoryName;
+    if (ff) return String(ff);
+    const catId = String((report as any)?.categoryId ?? (report as any)?.category?.id ?? "");
+    return catNameMap.get(catId) || "-";
+  })();
 
   return (
-    <div className="container-fluid py-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h3 className="mb-0">Dettaglio segnalazione</h3>
-        <div className="d-flex align-items-center" style={{ gap: 8 }}>
-          <Button variant="outline-secondary" onClick={() => navigate("/reports")}>
-            Indietro
-          </Button>
-        </div>
-      </div>
-
-      <Card className="shadow-sm mb-3">
-        <Card.Header>
-          <div className="d-flex align-items-center justify-content-between">
-            <div className="d-flex align-items-center" style={{ gap: 8, minWidth: 0 }}>
-              <h5 className="mb-0 text-truncate" title={titleMasked} style={{ maxWidth: "70vw" }}>
+    <div className="page-shell">
+      <div className="container-fluid py-2">
+        <div className="page-hero mb-3">
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div>
+              <div className="eyebrow">Segnalazioni</div>
+              <h4 className="mb-1">Dettaglio segnalazione</h4>
+              <div className="fs-5 text-truncate" title={titleMasked} style={{ maxWidth: "72vw", fontWeight: 600 }}>
                 {titleMasked}
-              </h5>
-              <Badge bg={status === "CLOSED" ? "success" : "warning"}>{statusToLabel(status) || "-"}</Badge>
+              </div>
+              <div className="text-secondary small">
+                ID {reportIdLabel} · Creata il {createdLabel}
+              </div>
+              <div className="d-flex align-items-center gap-2 flex-wrap mt-2">
+                <span className={`badge rounded-pill px-3 py-2 fw-semibold bg-${statusVariant} ${statusVariant === "warning" ? "text-dark" : ""}`}>
+                  Stato: {statusToLabel(status) || "-"}
+                </span>
+                <span className="badge rounded-pill bg-light text-dark border px-3 py-2 fw-semibold">
+                  Reparto: {departmentLabel}
+                </span>
+                <span className="badge rounded-pill bg-light text-dark border px-3 py-2 fw-semibold">
+                  Categoria: {categoryLabel}
+                </span>
+              </div>
             </div>
-            <small>creata il {report.createdAt ? new Date(report.createdAt).toLocaleString() : "-"}</small>
-          </div>
-        </Card.Header>
-        <Card.Body>
-          <Row className="g-3">
-            <Col md={6}>
-              <div className="mb-2">
-                <strong>Dipartimento:</strong>{" "}
-                {(() => {
-                  const ff = (report as any)?.department?.name || (report as any)?.departmentName;
-                  if (ff) return String(ff);
-                  const deptId = String((report as any)?.departmentId ?? (report as any)?.department?.id ?? "");
-                  return deptNameMap.get(deptId) || "-";
-                })()}
+            <div className="d-flex flex-column align-items-end gap-2">
+              <div className="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                <Button size="sm" variant="outline-dark" className="rounded-pill" onClick={() => navigate("/reports")}>
+                  Indietro
+                </Button>
+                <Button size="sm" variant="dark" className="rounded-pill" onClick={() => loadReport()}>
+                  Ricarica
+                </Button>
               </div>
-              <div className="mb-2">
-                <strong>Categoria:</strong>{" "}
-                {(() => {
-                  const ff = (report as any)?.category?.name || (report as any)?.categoryName;
-                  if (ff) return String(ff);
-                  const catId = String((report as any)?.categoryId ?? (report as any)?.category?.id ?? "");
-                  return catNameMap.get(catId) || "-";
-                })()}
-              </div>
-              {!auditor && reporterName && <div className="mb-2"><strong>Segnalante:</strong> {reporterName}</div>}
-              {auditor && ((report as any)?.reporterAlias || (report as any)?.reporter?.alias) && (
-                <div className="mb-2">
-                  <strong>Alias segnalante:</strong> {String((report as any)?.reporterAlias || (report as any)?.reporter?.alias)}
-                </div>
-              )}
-            </Col>
-            <Col md={6}>
               {!auditor && (
-                <Form onSubmit={submitStatus(onStatusSubmit)}>
-                  <div className="d-flex align-items-end justify-content-end" style={{ gap: 8 }}>
-                    <div>
-                      <Form.Label className="fw-semibold mb-1">Stato</Form.Label>
-                      <Form.Select size="sm" style={{ minWidth: 200 }} disabled={statusBusy || !canOperate} {...regStatus("status")}>
-                        {Object.entries(STATUS_LABELS).map(([val, label]) => {
-                          if (hasAssignee && val === "OPEN") {
-                            return String(status).toUpperCase() === "OPEN" ? (
-                              <option key={val} value={val} disabled>
-                                {label}
-                              </option>
-                            ) : null;
-                          }
-                          return (
-                            <option key={val} value={val}>
+                <Form
+                  onSubmit={submitStatus(onStatusSubmit)}
+                  className="d-flex align-items-end gap-2 flex-wrap justify-content-end mt-4"
+                  style={{ marginTop: 110 }}
+                >
+                  <div>
+                    <Form.Label className="fw-semibold mb-1">Stato</Form.Label>
+                    <Form.Select
+                      size="sm"
+                      style={{ minWidth: 220 }}
+                      disabled={statusBusy || !canOperate}
+                      {...regStatus("status")}
+                    >
+                      {Object.entries(STATUS_LABELS).map(([val, label]) => {
+                        if (hasAssignee && val === "OPEN") {
+                          return String(status).toUpperCase() === "OPEN" ? (
+                            <option key={val} value={val} disabled>
                               {label}
                             </option>
-                          );
-                        })}
-                      </Form.Select>
-                    </div>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      variant="dark"
-                      disabled={statusBusy || !canOperate || String(watchStatus("status") || "") === status}
-                    >
-                      Aggiorna
-                    </Button>
+                          ) : null;
+                        }
+                        return (
+                          <option key={val} value={val}>
+                            {label}
+                          </option>
+                        );
+                      })}
+                    </Form.Select>
                   </div>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="dark"
+                    className="rounded-pill"
+                    disabled={statusBusy || !canOperate || String(watchStatus("status") || "") === status}
+                  >
+                    Aggiorna
+                  </Button>
                 </Form>
               )}
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+            </div>
+          </div>
+        </div>
 
-      <Card className="shadow-sm mb-3">
+        <Card className="info-card mb-3">
         <Card.Header className="d-flex justify-content-between align-items-center">
           <strong>Assegnazione</strong>
           <div className="d-flex align-items-center" style={{ gap: 8 }}>
@@ -823,12 +837,12 @@ const assigneeLabel: string = useMemo(() => {
               <div className="mb-2">
                 <strong>Auditor:</strong> {auditorsLabel}
               </div>
-              <div className="d-flex align-items-end" style={{ gap: 8 }}>
+              <div className="d-flex align-items-end" style={{ gap: 8, flexWrap: "nowrap" }}>
                 <Form.Select
                   value={assignAuditorId}
                   onChange={(e) => setAssignAuditorId(e.currentTarget.value)}
                   disabled={loadingAuditors || assignAuditorBusy}
-                  style={{ minWidth: 260 }}
+                  style={{ minWidth: 180, maxWidth: 220 }}
                 >
                   <option value="">Seleziona auditor</option>
                   {auditorUsers.map((u) => (
@@ -889,7 +903,7 @@ const assigneeLabel: string = useMemo(() => {
 
       </Card>
 
-      <Card className="shadow-sm mb-3">
+      <Card className="info-card mb-3">
         <Card.Header>
           <strong>Descrizione</strong>
         </Card.Header>
@@ -899,7 +913,7 @@ const assigneeLabel: string = useMemo(() => {
       <Row className="g-3">
         <Col md={8}>
           {/* Messaggi interni */}
-          <Card className="shadow-sm">
+          <Card className="info-card">
             <Card.Header className="d-flex justify-content-between align-items-center">
               <strong>Messaggi interni</strong>
             </Card.Header>
@@ -965,7 +979,7 @@ const assigneeLabel: string = useMemo(() => {
 
           {/* Chat pubblica */}
           {!auditor && (
-            <Card className="shadow-sm mt-3">
+            <Card className="info-card mt-3">
               <Card.Header>
                 <strong>Chat pubblica</strong>
               </Card.Header>
@@ -1084,7 +1098,7 @@ const assigneeLabel: string = useMemo(() => {
 
         {/* Allegati + Note */}
         <Col md={4}>
-          <Card className="shadow-sm">
+          <Card className="info-card">
             <Card.Header>
               <strong>Allegati</strong>
             </Card.Header>
@@ -1213,7 +1227,7 @@ const assigneeLabel: string = useMemo(() => {
           </Card>
 
           {canSeeNotes && (
-            <Card className="shadow-sm mt-3">
+            <Card className="info-card mt-3">
               <Card.Header>
                 <strong>Le mie note</strong>
               </Card.Header>
@@ -1308,6 +1322,7 @@ const assigneeLabel: string = useMemo(() => {
           setPreviewBlob(undefined);
         }}
       />
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 type ConfirmState = {
   publicCode: string;
@@ -16,7 +16,7 @@ export default function PublicConfirm() {
 
   useEffect(() => {
     if (!publicCode || !secret) {
-      navigate('/new/text', { replace: true });
+      navigate("/new/text", { replace: true });
     }
   }, [publicCode, secret, navigate]);
 
@@ -29,18 +29,18 @@ export default function PublicConfirm() {
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(secret);
-      setCopyOk('Segreto copiato negli appunti');
+      setCopyOk("Segreto copiato negli appunti");
       setTimeout(() => setCopyOk(null), 1500);
     } catch {
-      setCopyOk('Copia non riuscita');
+      setCopyOk("Copia non riuscita");
       setTimeout(() => setCopyOk(null), 1500);
     }
   };
 
   const onDownload = () => {
-    const blob = new Blob([reminderText], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([reminderText], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `promemoria-${publicCode}.txt`;
     a.click();
@@ -60,43 +60,76 @@ export default function PublicConfirm() {
   };
 
   return (
-    <div className="container-narrow">
-      <h3 className="mb-3">Conferma segnalazione</h3>
-      <div className="alert alert-warning">
-        <div className="fw-semibold">Il segreto verrà mostrato una sola volta.</div>
-        Conserva con cura i dati di accesso alla pratica.
-      </div>
-
-      <div className="card mb-3">
-        <div className="card-body">
-          <div className="mb-2"><b>Codice pubblico:</b> <code>{publicCode}</code></div>
-          <div className="mb-2"><b>Segreto:</b> <code>{secret}</code></div>
-          <div className="d-flex flex-wrap gap-2 mt-3">
-            <button className="btn btn-outline-dark" onClick={onCopy}>Copia segreto</button>
-            <button className="btn btn-outline-secondary" onClick={onDownload}>Scarica promemoria.txt</button>
+    <div className="widget-shell">
+      <div className="container-fluid">
+        <div className="widget-hero mb-3">
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div>
+              <div className="eyebrow">Segnalazioni</div>
+              <h4 className="mb-1">Conferma segnalazione</h4>
+              <div className="text-secondary small">
+                Annota codice pubblico e segreto: servono per accedere alla pratica.
+              </div>
+            </div>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <Link to="/new/text" className="btn btn-outline-secondary">
+                Nuova segnalazione
+              </Link>
+              <Link to="/case/access" className="btn btn-dark">
+                Accedi alla pratica
+              </Link>
+            </div>
           </div>
-          {copyOk && <div className="text-success small mt-2">{copyOk}</div>}
         </div>
-      </div>
 
-      <div className="mb-3">
-        <div className="form-check">
-          <input
-            id="saveLocal"
-            type="checkbox"
-            className="form-check-input"
-            onChange={(e) => onSaveLocal(e.currentTarget.checked)}
-          />
-          <label htmlFor="saveLocal" className="form-check-label">
-            Salva localmente per follow-up rapido (facoltativo)
-          </label>
+        <div className="info-card p-4">
+          <div className="alert alert-warning">
+            <div className="fw-semibold">Il segreto verrà mostrato una sola volta.</div>
+            Conserva con cura i dati di accesso alla pratica.
+          </div>
+
+          <div className="p-3 border rounded bg-light">
+            <div className="mb-2">
+              <strong>Codice pubblico:</strong> <code>{publicCode}</code>
+            </div>
+            <div className="mb-2">
+              <strong>Segreto:</strong> <code>{secret}</code>
+            </div>
+            <div className="d-flex flex-wrap gap-2 mt-3">
+              <button className="btn btn-dark" onClick={onCopy}>
+                Copia segreto
+              </button>
+              <button className="btn btn-outline-secondary" onClick={onDownload}>
+                Scarica promemoria.txt
+              </button>
+            </div>
+            {copyOk && <div className="text-success small mt-2">{copyOk}</div>}
+          </div>
+
+          <div className="mb-3 mt-3">
+            <div className="form-check">
+              <input
+                id="saveLocal"
+                type="checkbox"
+                className="form-check-input"
+                onChange={(e) => onSaveLocal(e.currentTarget.checked)}
+              />
+              <label htmlFor="saveLocal" className="form-check-label">
+                Salva localmente per follow-up rapido (facoltativo)
+              </label>
+            </div>
+            {saved && <div className="text-success small mt-1">Dati salvati su questo browser.</div>}
+          </div>
+
+          <div className="d-flex gap-2 flex-wrap">
+            <Link to="/case/access" className="btn btn-dark">
+              Accedi alla pratica
+            </Link>
+            <Link to="/" className="btn btn-outline-secondary">
+              Torna alla home
+            </Link>
+          </div>
         </div>
-        {saved && <div className="text-success small mt-1">Dati salvati su questo browser.</div>}
-      </div>
-
-      <div className="d-flex gap-2 flex-wrap">
-        <Link to="/case/access" className="btn btn-dark">Accedi alla pratica</Link>
-        <Link to="/" className="btn btn-outline-secondary">Torna alla home</Link>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import Button from "react-bootstrap/Button";
+import logo from "@/assets/logo-superuser.svg";
 
 /** Layout PUBBLICO: nessuna navbar utente; header con CTA */
 export function PublicLayout() {
@@ -13,18 +14,31 @@ export function PublicLayout() {
   };
 
   return (
-    <div className="bg-light min-vh-100">
-      <header className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-white">
-        <div className="fw-bold">LetMeKnow</div>
-        <div className="d-flex gap-2">
-          <Button type="button" variant="dark" onClick={goLogin}>Accedi</Button>
-          <Button type="button" variant="outline-secondary" onClick={goRegister}>Registrati</Button>
+    <div className="min-vh-100">
+      <header className="app-header">
+        <div className="container header-bar">
+          <a href="#/" className="brand-link">
+            <div className="brand-avatar">
+              <img src={logo} alt="LetMeKnow" width={28} height={28} />
+            </div>
+            <div className="lh-sm">
+              <div className="brand-eyebrow">Piattaforma</div>
+              <div className="brand-title">LetMeKnow</div>
+            </div>
+          </a>
+          <div className="d-flex align-items-center gap-2">
+            <Button type="button" variant="outline-dark" className="rounded-pill" onClick={goRegister}>
+              Registrati
+            </Button>
+            <Button type="button" variant="dark" className="rounded-pill px-3" onClick={goLogin}>
+              Accedi
+            </Button>
+          </div>
         </div>
       </header>
-      <main className="container py-4">
+      <main className="container page-shell">
         <Outlet />
       </main>
     </div>
   );
 }
-

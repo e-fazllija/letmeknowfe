@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Nav } from 'react-bootstrap';
+import { Nav, Card } from 'react-bootstrap';
 import { useAuth } from '@/context/AuthContext';
 import { FEATURE_SETTINGS, FEATURE_TEMPLATES } from '@/config';
 import SettingsDepartmentsTab from '@/pages/settings/tabs/SettingsDepartmentsTab';
@@ -42,8 +42,32 @@ export default function SettingsPage() {
 
   // URL sync optional: skipped to avoid hash-router conflicts
 
-  if (!FEATURE_SETTINGS) return <div className="container py-4"><div className="alert alert-secondary">Impostazioni disabilitate.</div></div>;
-  if (!canSettings) return <div className="container py-4"><div className="alert alert-warning">Non autorizzato</div></div>;
+  if (!FEATURE_SETTINGS) {
+    return (
+      <div className="page-shell">
+        <div className="container-fluid py-2">
+          <Card className="info-card">
+            <Card.Body>
+              <div className="alert alert-secondary mb-0">Impostazioni disabilitate.</div>
+            </Card.Body>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+  if (!canSettings) {
+    return (
+      <div className="page-shell">
+        <div className="container-fluid py-2">
+          <Card className="info-card">
+            <Card.Body>
+              <div className="alert alert-warning mb-0">Non autorizzato</div>
+            </Card.Body>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const content = useMemo(() => {
     if (forceBillingOnly) return <SettingsBillingTab />;
@@ -59,25 +83,49 @@ export default function SettingsPage() {
   }, [tab, forceBillingOnly]);
 
   return (
-    <div className="container py-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="mb-0">Impostazioni</h2>
+    <div className="page-shell">
+      <div className="container-fluid py-2">
+        <div className="page-hero mb-3">
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div>
+              <div className="eyebrow">Console</div>
+              <h4 className="mb-1">Impostazioni</h4>
+              <div className="text-secondary small">Gestisci utenti, reparti, categorie e fatturazione.</div>
+            </div>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <span className="badge-soft">Accesso amministratore</span>
+            </div>
+          </div>
+        </div>
+
+        <Card className="info-card">
+          <Card.Body>
+            <Nav
+              variant="pills"
+              activeKey={tab}
+              onSelect={(k) => k && setTab(k)}
+              className="mb-3 flex-wrap"
+              style={{ gap: 8 }}
+            >
+              {!forceBillingOnly && (
+                <>
+                  <Nav.Item><Nav.Link eventKey="users">Utenti</Nav.Link></Nav.Item>
+                  <Nav.Item><Nav.Link eventKey="departments">Reparti</Nav.Link></Nav.Item>
+                  <Nav.Item><Nav.Link eventKey="categories">Categorie</Nav.Link></Nav.Item>
+                  <Nav.Item><Nav.Link eventKey="policy">Policy &amp; Info</Nav.Link></Nav.Item>
+                  {FEATURE_TEMPLATES && (
+                    <Nav.Item><Nav.Link eventKey="templates">Template</Nav.Link></Nav.Item>
+                  )}
+                </>
+              )}
+              <Nav.Item><Nav.Link eventKey="billing">Fatturazione</Nav.Link></Nav.Item>
+            </Nav>
+            <div className="pt-1">
+              {content}
+            </div>
+          </Card.Body>
+        </Card>
       </div>
-      <Nav variant="pills" activeKey={tab} onSelect={(k) => k && setTab(k)} className="mb-3 flex-wrap" style={{ gap: 8 }}>
-        {!forceBillingOnly && (
-          <>
-            <Nav.Item><Nav.Link eventKey="users">Utenti</Nav.Link></Nav.Item>
-            <Nav.Item><Nav.Link eventKey="departments">Reparti</Nav.Link></Nav.Item>
-            <Nav.Item><Nav.Link eventKey="categories">Categorie</Nav.Link></Nav.Item>
-            <Nav.Item><Nav.Link eventKey="policy">Policy &amp; Info</Nav.Link></Nav.Item>
-            {FEATURE_TEMPLATES && (
-              <Nav.Item><Nav.Link eventKey="templates">Template</Nav.Link></Nav.Item>
-            )}
-          </>
-        )}
-        <Nav.Item><Nav.Link eventKey="billing">Fatturazione</Nav.Link></Nav.Item>
-      </Nav>
-      {content}
     </div>
   );
 }

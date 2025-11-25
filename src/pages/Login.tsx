@@ -1,11 +1,12 @@
 // src/pages/Login.tsx
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import logo from "../assets/logo-transparent-light.png";
+import { Alert, Button, Card, Col, Container, Form, Row } from "react-bootstrap";
+import brand from "@/assets/logo-superuser.svg";
+import logoDark from "@/assets/logo-transparent-dark.png";
 import { completeMfa as apiCompleteMfa } from "@/api/api";
 import { mfaSetup, mfaVerify } from "@/lib/tenantAuth.service";
 import { useAuth } from "@/context/AuthContext";
-// import { refreshAccess } from "@/lib/api";
 
 type LocationState = { redirectTo?: string } | null;
 
@@ -14,6 +15,9 @@ export default function Login() {
   const location = useLocation();
   const locState = (location.state as LocationState) || null;
   const { login: ctxLogin, mfa: ctxMfa, authPhase } = useAuth();
+  const publicSignupUrl =
+    (import.meta as any).env?.VITE_PUBLIC_SIGNUP_URL ||
+    `${(import.meta as any).env?.VITE_API_BASE_URL}/public`;
 
   // Clean activation-related query params from /login to avoid refresh loops
   useEffect(() => {
@@ -21,18 +25,17 @@ export default function Login() {
       const qs = String(location.search || "");
       if (qs && /activate|selector|token/i.test(qs)) {
         const href = window.location.href;
-        const parts = href.split('#');
+        const parts = href.split("#");
         if (parts.length > 1) {
-          const hashPath = parts[1].split('?')[0];
-          window.history.replaceState({}, '', parts[0] + '#' + hashPath);
+          const hashPath = parts[1].split("?")[0];
+          window.history.replaceState({}, "", parts[0] + "#" + hashPath);
         } else {
-          window.history.replaceState({}, '', location.pathname);
+          window.history.replaceState({}, "", location.pathname);
         }
       }
     } catch {}
-  }, []);
+  }, [location.pathname, location.search]);
 
-  // Nessun tenant in login UI: header x-tenant-id viene iniettato in dev dal client API
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -54,12 +57,12 @@ export default function Login() {
   const [setupErr, setSetupErr] = useState<string | null>(null);
   const [setupOtp, setSetupOtp] = useState<string>("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | undefined>(undefined);
-  // Rimosso campo Client ID (tenant)
 
   // Nessun redirect automatico a /mfa/complete: MFA gestito inline
   useEffect(() => {
-    try { sessionStorage.removeItem("lmw_mfa_token"); } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    try {
+      sessionStorage.removeItem("lmw_mfa_token");
+    } catch {}
   }, []);
 
   // Avvia setup MFA inline quando abbiamo un setupToken
@@ -72,11 +75,12 @@ export default function Login() {
         setOtpauthUrl(info?.otpauthUrl || "");
         setSecretDev(info?.secret || undefined);
         setExpiresIn(info?.expiresIn || undefined);
-              } catch (e: any) {
+      } catch (e: any) {
         setSetupErr(e?.response?.data?.message || e?.message || "Impossibile iniziare il setup MFA.");
       }
     })();
   }, [setupStep, setupToken]);
+
   // Pulisce eventuale sessione/cookie obsoleti per evitare refresh su /login
   useEffect(() => {
     try {
@@ -84,10 +88,6 @@ export default function Login() {
       document.cookie = "refresh_token=; Max-Age=0; path=/;";
     } catch {}
   }, []);
-  // Niente refresh su /login: evitiamo chiamate a /refresh da qui
-
-
-  // Niente prefill tenant: gestito via proxy/header lato dev
 
   async function doLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -98,267 +98,293 @@ export default function Login() {
     setMfaToken("");
     try {
       await ctxLogin(email.trim(), password, remember);
-      // Se il Context entra in fase MFA, reindirizza alla pagina MFA dedicata
       try {
-        const needMfa = (ctxMfa?.required === true) || authPhase === 'mfa';
+        const needMfa = ctxMfa?.required === true || authPhase === "mfa";
         if (needMfa) {
-          navigate('/mfa/code', { replace: true });
+          navigate("/mfa/code", { replace: true, state: locState || undefined });
           return;
         }
       } catch {}
-      // In caso di successo senza MFA, AuthContext gestisce già navigate('/home')
     } catch (err: any) {
-  // Gestione SETUP MFA (428) inline
-  if (err?.status === 428 || err?.response?.status === 428) {
-    try {
-      const body = (err as any).body || err?.response?.data || {};
-      const st = String(body?.setupToken || body?.token || "");
-      if (st) { setSetupToken(st); setSetupStep(true); return; }
-    } catch {}
+      if (err?.status === 428 || err?.response?.status === 428) {
+        try {
+          const body = (err as any).body || err?.response?.data || {};
+          const st = String(body?.setupToken || body?.token || "");
+          if (st) {
+            setSetupToken(st);
+            setSetupStep(true);
+            return;
+          }
+        } catch {}
+      }
+      const message = err?.response?.data?.message || err?.message || "Login fallito";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   }
-  const message = err?.response?.data?.message || err?.message || "Login fallito";
-  setError(message);
-} finally {
-  setLoading(false);
-}  }  return (
-    <div className="d-flex align-items-center justify-content-center" style={{ minHeight: "100vh" }}>
-      <div className="container">
-        <div className="row justify-content-center">
-          {/* Logo brand */}
-          <div className="col-12 text-center mb-4">
-            <img src={logo} alt="LetMeKnow" style={{ height: 160, width: "auto" }} className="mb-2" />
-            <div className="text-muted">Whistleblowing platform</div>
-          </div>
 
-          {/* Card Login */}
-          <div className="col-12 col-sm-10 col-md-7 col-lg-5">
-            <div className="card shadow-sm">
-              <div className="card-body">
-                <h4 className="card-title mb-3">Accedi</h4>
-                <p className="text-muted mb-4">Inserisci le credenziali per continuare.</p>
-
-                {error && <div className="alert alert-danger py-2">{error}</div>}
-
-                <form onSubmit={doLogin}>
-
-                  <div className="mb-3">
-                    {/* Tenant non richiesto in UI */}
+  return (
+    <div className="auth-hero">
+      <Container>
+        <Row className="justify-content-center">
+          <Col lg={10}>
+            <Card className="auth-shell border-0">
+              <Row className="g-0">
+                <Col lg={5} className="d-none d-lg-flex flex-column justify-content-between auth-hero-pane">
+                  <div>
+                    <img src={logoDark} alt="LetMeKnow" className="auth-logo mb-4" />
+                    <div className="label-muted mb-2">Accesso riservato</div>
+                    <p className="mb-3">
+                      Gestisci segnalazioni, audit trail e controlli MFA in un'unica console sicura.
+                    </p>
+                    <div className="auth-bullet">
+                      <span aria-hidden="true" />
+                      Dashboard e workflow guidati
+                    </div>
+                    <div className="auth-bullet">
+                      <span aria-hidden="true" />
+                      Accesso protetto con MFA
+                    </div>
+                    <div className="auth-bullet">
+                      <span aria-hidden="true" />
+                      Log e audit trail sempre disponibili
+                    </div>
                   </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">Email</label>
-                    <input
-                      type="email"
-                      className="form-control"
-                      placeholder="nome@azienda.it"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      autoFocus
-                    />
+                  <div className="badge-soft mt-4">
+                    <img src={brand} alt="LetMeKnow Platform" width={20} height={20} />
+                    <span>LetMeKnow Platform</span>
                   </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">Password</label>
-                    <input
-                      type="password"
-                      className="form-control"
-                      placeholder="••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={4}
-                    />
+                </Col>
+                <Col lg={7} className="p-4 p-lg-5">
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <span className="badge-soft">Console</span>
+                    <span className="label-muted">Login</span>
                   </div>
+                  <h2 className="auth-card-title mb-1">Bentornato!</h2>
+                  <p className="text-secondary mb-4">
+                    Inserisci credenziali e completa l'autenticazione per accedere.
+                  </p>
 
-                  <div className="form-check mb-3">
-                    <input
-                      className="form-check-input"
+                  {error && <Alert variant="danger" className="py-2">{error}</Alert>}
+
+                  <Form onSubmit={doLogin} className="text-start">
+                    <Form.Group className="mb-3" controlId="email">
+                      <Form.Label>Email</Form.Label>
+                      <Form.Control
+                        type="email"
+                        placeholder="nome@azienda.it"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                    </Form.Group>
+
+                    <Form.Group className="mb-3" controlId="password">
+                      <Form.Label>Password</Form.Label>
+                      <Form.Control
+                        type="password"
+                        placeholder="********"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={4}
+                      />
+                    </Form.Group>
+
+                    <Form.Check
+                      className="mb-3"
                       type="checkbox"
                       id="remember"
                       checked={remember}
                       onChange={(e) => setRemember(e.target.checked)}
+                      label="Ricordami su questo dispositivo"
                     />
-                    <label className="form-check-label" htmlFor="remember">
-                      Ricordami su questo dispositivo
-                    </label>
-                  </div>
 
-                  <button type="submit" className="btn btn-primary w-100" disabled={loading}>
-                    {loading ? "Accesso in corso…" : "Accedi"}
-                  </button>
-                </form>
+                    <div className="d-grid gap-2">
+                      <Button type="submit" variant="dark" className="rounded-pill" disabled={loading}>
+                        {loading ? "Accesso in corso..." : "Accedi"}
+                      </Button>
+                    </div>
+                  </Form>
 
-                {setupStep && (
-                  <div className="mt-4">
-                    <h5 className="mb-2">Configura MFA</h5>
-                    {setupErr && <div className="alert alert-danger py-2" role="alert" aria-live="assertive">{setupErr}</div>}
-                    {(secretDev || otpauthUrl) && (
-                      <div className="mb-3">
-                        {secretDev ? (
-                          <div className="alert alert-secondary">
-                            <div><strong>Segreto (dev):</strong> <code>{secretDev}</code></div>
-                            <div className="mt-2">
-                              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => navigator.clipboard.writeText(secretDev || "")}>Copia</button>
-                            </div>
+                  {setupStep && (
+                    <div className="mt-4">
+                      <h5 className="mb-2">Configura MFA</h5>
+                      {setupErr && (
+                        <Alert variant="danger" className="py-2" role="alert" aria-live="assertive">
+                          {setupErr}
+                        </Alert>
+                      )}
+                      {(secretDev || otpauthUrl) && (
+                        <div className="mb-3">
+                          {secretDev ? (
+                            <Alert variant="secondary" className="mb-2">
+                              <div><strong>Segreto (dev):</strong> <code>{secretDev}</code></div>
+                              <div className="mt-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() => navigator.clipboard.writeText(secretDev || "")}
+                                >
+                                  Copia
+                                </Button>
+                              </div>
+                            </Alert>
+                          ) : (
+                            <Alert variant="info" className="mb-2">
+                              <div><strong>otpauthUrl:</strong> <code>{otpauthUrl}</code></div>
+                              <div className="mt-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() => navigator.clipboard.writeText(otpauthUrl || "")}
+                                >
+                                  Copia
+                                </Button>
+                              </div>
+                            </Alert>
+                          )}
+                          <div className="small text-muted">
+                            Istruzioni: apri l'app OTP, aggiungi account, scegli "Inserisci chiave" e incolla il secret.
                           </div>
-                        ) : (
-                          <div className="alert alert-info">
-                            <div><strong>otpauthUrl:</strong> <code>{otpauthUrl}</code></div>
-                            <div className="mt-2">
-                              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => navigator.clipboard.writeText(otpauthUrl || "")}>Copia</button>
-                            </div>
-                          </div>
-                        )}
-                        <div className="small text-muted">
-                          Istruzioni: apri l'app OTP → aggiungi account → "Inserisci chiave" → incolla il secret.
+                          {typeof expiresIn === "number" && (
+                            <div className="text-muted small mt-1">Scade tra ~{expiresIn}s</div>
+                          )}
                         </div>
-                        {typeof expiresIn === 'number' && <div className="text-muted small mt-1">Scade tra ~{expiresIn}s</div>}
-                      </div>
-                    )}
+                      )}
 
-                    {!recoveryCodes && (
+                      {!recoveryCodes && (
+                        <form
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            setSetupErr(null);
+                            const code = (setupOtp || "").replace(/\D/g, "");
+                            if (code.length !== 6) { setSetupErr("Inserisci un codice a 6 cifre."); return; }
+                            try {
+                              const res = await mfaVerify(setupToken, code);
+                              const codes = (res?.recoveryCodes || []) as string[];
+                              setRecoveryCodes(codes);
+                            } catch (err: any) {
+                              setSetupErr(err?.response?.data?.message || err?.message || "Codice non valido.");
+                            }
+                          }}
+                          noValidate
+                        >
+                          <div className="input-group mb-2">
+                            <input
+                              className="form-control"
+                              placeholder="Codice a 6 cifre"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={setupOtp}
+                              onChange={(e) => setSetupOtp(e.target.value.replace(/\D/g, ""))}
+                              aria-label="Codice a 6 cifre"
+                              required
+                            />
+                            <button className="btn btn-dark" type="submit">Verifica</button>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary"
+                            onClick={() => { setSetupStep(false); setSetupToken(""); setRecoveryCodes(undefined); }}
+                          >
+                            Annulla
+                          </button>
+                        </form>
+                      )}
+
+                      {recoveryCodes && (
+                        <Card className="mt-3">
+                          <Card.Body>
+                            <Card.Title className="h6">Codici di recupero</Card.Title>
+                            <p className="text-muted small">Salvali in un luogo sicuro. Verranno mostrati solo ora.</p>
+                            <pre style={{ whiteSpace: "pre-wrap" }}>{recoveryCodes.join("\n")}</pre>
+                            <div className="d-flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline-secondary"
+                                onClick={() => navigator.clipboard.writeText(recoveryCodes.join("\n"))}
+                              >
+                                Copia tutto
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="primary"
+                                onClick={() => {
+                                  setSetupStep(false);
+                                  setRecoveryCodes(undefined);
+                                  setSetupToken("");
+                                  setSetupOtp("");
+                                }}
+                              >
+                                Torna al login
+                              </Button>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+
+                  {mfaStep && (
+                    <div className="mt-4">
+                      <h5 className="mb-2">Verifica 2FA</h5>
+                      {mfaError && <Alert variant="danger" className="py-2">{mfaError}</Alert>}
                       <form
                         onSubmit={async (e) => {
-                          e.preventDefault(); setSetupErr(null);
-                          const code = (setupOtp || '').replace(/\D/g, '');
-                          if (code.length !== 6) { setSetupErr('Inserisci un codice a 6 cifre.'); return; }
+                          e.preventDefault();
+                          setMfaError(null);
+                          if (mfaSubmitting) return;
+                          const code = (otp || "").replace(/\D/g, "");
+                          if (code.length !== 6) { setMfaError("Inserisci un codice a 6 cifre."); return; }
                           try {
-                            const res = await mfaVerify(setupToken, code);
-                            const codes = (res?.recoveryCodes || []) as string[];
-                            setRecoveryCodes(codes);
+                            setMfaSubmitting(true);
+                            await apiCompleteMfa(mfaToken, code);
+                            setMfaStep(false);
+                            setMfaToken("");
+                            setOtp("");
+                            setMfaError(null);
+                            navigate("/home", { replace: true });
                           } catch (err: any) {
-                            setSetupErr(err?.response?.data?.message || err?.message || 'Codice non valido.');
+                            const status = err?.status || err?.response?.status;
+                            if (status === 401) setMfaError("Codice non valido.");
+                            else if (status === 429) setMfaError("Troppe richieste. Riprova tra qualche secondo.");
+                            else setMfaError(err?.response?.data?.message || err?.message || "Codice non valido o scaduto.");
+                          } finally {
+                            setMfaSubmitting(false);
                           }
                         }}
                         noValidate
                       >
-                        <div className="input-group mb-2">
+                        <div className="input-group">
                           <input
                             className="form-control"
                             placeholder="Codice a 6 cifre"
                             inputMode="numeric"
                             maxLength={6}
-                            value={setupOtp}
-                            onChange={(e) => setSetupOtp(e.target.value.replace(/\D/g, ''))}
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                             aria-label="Codice a 6 cifre"
                             required
                           />
-                          <button className="btn btn-dark" type="submit">Verifica</button>
+                          <button type="submit" className="btn btn-dark" disabled={mfaSubmitting}>Verifica</button>
                         </div>
-                        <button type="button" className="btn btn-outline-secondary" onClick={() => { setSetupStep(false); setSetupToken(''); setRecoveryCodes(undefined); }}>Annulla</button>
                       </form>
-                    )}
+                    </div>
+                  )}
 
-                    {recoveryCodes && (
-                      <div className="card mt-3">
-                        <div className="card-body">
-                          <h6 className="card-title">Codici di recupero</h6>
-                          <p className="text-muted small">Salvali in un luogo sicuro. Verranno mostrati solo ora.</p>
-                          <pre style={{ whiteSpace: 'pre-wrap' }}>{recoveryCodes.join('\n')}</pre>
-                          <div className="d-flex gap-2">
-                            <button type="button" className="btn btn-outline-secondary" onClick={() => navigator.clipboard.writeText(recoveryCodes.join('\n'))}>Copia tutto</button>
-                            <button type="button" className="btn btn-primary" onClick={() => { setSetupStep(false); setRecoveryCodes(undefined); setSetupToken(''); setSetupOtp(''); }}>Torna al login</button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                  <div className="mt-3 small text-muted text-center">
+                    <p className="mb-1">Non hai ancora un account?</p>
+                    <a href={publicSignupUrl}>Registrati dalla pagina pubblica</a>
                   </div>
-                )}
-
-                {mfaStep && (
-                  <div className="mt-4">
-                    <h5 className="mb-2">Verifica 2FA</h5>
-                    {mfaError && <div className="alert alert-danger py-2">{mfaError}</div>}
-                    <form
-                      onSubmit={async (e) => {
-                        e.preventDefault();
-                        setMfaError(null);
-                        if (mfaSubmitting) return;
-                        const code = (otp || "").replace(/\D/g, "");
-                        if (code.length !== 6) { setMfaError("Inserisci un codice a 6 cifre."); return; }
-                        try {
-                          setMfaSubmitting(true);
-                          const out = await apiCompleteMfa(mfaToken, code);
-                          // Cookie-first: nessun token salvato lato FE; se la chiamata è OK, procedi
-                          setMfaStep(false); setMfaToken(""); setOtp(""); setMfaError(null);
-                          navigate("/home", { replace: true });
-                        } catch (err: any) {
-                          const status = err?.status || err?.response?.status;
-                          if (status === 401) setMfaError("Codice non valido.");
-                          else if (status === 429) setMfaError("Troppe richieste. Riprova tra qualche secondo.");
-                          else setMfaError(err?.response?.data?.message || err?.message || "Codice non valido o scaduto.");
-                        } finally {
-                          setMfaSubmitting(false);
-                        }
-                      }}
-                      noValidate
-                    >
-                      <div className="input-group">
-                        <input
-                          className="form-control"
-                          placeholder="Codice a 6 cifre"
-                          inputMode="numeric"
-                          maxLength={6}
-                          value={otp}
-                          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                          aria-label="Codice a 6 cifre"
-                          required
-                        />
-                        <button type="submit" className="btn btn-dark" disabled={mfaSubmitting}>Verifica</button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                <div className="mt-3 small text-muted">
-                  <div>💡 Se non hai ancora un account, registrati dalla pagina pubblica.</div>
-                </div>
-                <div className="mt-2 small text-muted text-center">
-                  {(() => {
-                    const publicSignupUrl = (import.meta as any).env?.VITE_PUBLIC_SIGNUP_URL || `${(import.meta as any).env?.VITE_API_BASE_URL}/public`;
-                    return (
-                      <p className="mb-0">
-                        Se non hai ancora un account,&nbsp;
-                        <a href={publicSignupUrl}>registrati dalla pagina pubblica</a>.
-                      </p>
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center text-muted small mt-3">
-              © {new Date().getFullYear()} LetMeKnow
-            </div>
-          </div>
-        </div>
-      </div>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
+        </Row>
+      </Container>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

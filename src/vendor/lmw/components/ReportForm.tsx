@@ -182,7 +182,7 @@ export default function ReportForm() {
           }
         } catch (e: any) {
           if (e instanceof ApiError && e.status === 501) {
-            // presign disabilitato lato BE —' procedi senza allegati
+            // presign disabilitato lato BE — procedi senza allegati
             attachmentsForCreate = [];
           } else if (e instanceof ApiError && e.status === 400) {
             setSubmitting(false);
@@ -250,177 +250,196 @@ export default function ReportForm() {
   };
 
   return (
-    <div className="container-fluid">
-      <h3 className="mb-3">Nuova segnalazione</h3>
-
-      {warnings.length > 0 && (
-        <div className="alert alert-warning">
-          <div className="fw-semibold mb-1">Possibile presenza di dati identificativi.</div>
-          <ul className="mb-0 small">{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
-          <div className="small mt-1">Il controllo è informativo.</div>
-        </div>
-      )}
-      {error && <div className="alert alert-danger">{error}</div>}
-
-      <form onSubmit={onSubmit} className="vstack gap-3">
-        <div className="row g-3">
-          <div className="col-12">
-            <label className="form-label">Data</label>
-            <input type="date" className="form-control" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-        </div>
-
-        <div>
-          <label className="form-label">Privacy del segnalante</label>
-          <select
-            className="form-select"
-            value={privacy}
-            onChange={(e) => setPrivacy(e.target.value as "Anonimo" | "Confidenziale")}
-          >
-            <option value="Anonimo">Anonimo</option>
-            <option value="Confidenziale">Confidenziale</option>
-          </select>
-        </div>
-
-        {privacy === 'Confidenziale' && (
-          <div className="alert alert-secondary">
-            <div className="row g-2">
-              <div className="col-md-6">
-                <label className="form-label">Nome</label>
-                <input
-                  className="form-control"
-                  placeholder="Nome"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                />
+    <div className="widget-shell">
+      <div className="container-fluid">
+        <div className="widget-hero mb-3">
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div>
+              <div className="eyebrow">Segnalazioni</div>
+              <h4 className="mb-1">Nuova segnalazione</h4>
+              <div className="text-secondary small">
+                Inserisci i dettagli, allega file o aggiungi un messaggio vocale.
               </div>
-              <div className="col-md-6">
-                <label className="form-label">Cognome</label>
-                <input
-                  className="form-control"
-                  placeholder="Cognome"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                />
+              <div className="d-flex align-items-center gap-2 flex-wrap mt-2">
+                <span className="badge-soft">Privacy: {privacy}</span>
+                <span className="badge-soft">
+                  {departments.length ? `${departments.length} reparti` : "Reparti in caricamento"}
+                </span>
               </div>
             </div>
-            <div className="form-text mt-1">Richiesto per le segnalazioni confidenziali.</div>
           </div>
-        )}
+        </div>
 
-        <div>
-          <label className="form-label" htmlFor="subject">Oggetto</label>
-          <input
-            id="subject"
-            className={"form-control" + (showValidation && !subject.trim() ? " is-invalid" : "")}
-            placeholder="Oggetto della segnalazione"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)} />
-          {showValidation && !subject.trim() && (
-            <div className="invalid-feedback d-block">Compila il campo Oggetto</div>
+        <div className="info-card p-4">
+          {warnings.length > 0 && (
+            <div className="alert alert-warning">
+              <div className="fw-semibold mb-1">Possibile presenza di dati identificativi.</div>
+              <ul className="mb-0 small">{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+              <div className="small mt-1">Il controllo è informativo.</div>
+            </div>
           )}
-        </div>
+          {error && <div className="alert alert-danger">{error}</div>}
 
-        <div className="row g-3">
-          <div className="col-md-6">
-            <label className="form-label" htmlFor="department">Reparto</label>
-            <select id="department" className={"form-select" + (showValidation && !department ? " is-invalid" : "")} value={department} onChange={(e) => { setDepartment(e.target.value); setCategory(''); }}>
-              <option value="">{lookupMsg ? 'Errore caricamento' : ((departments || []).length ? 'Seleziona…' : 'Caricamento...')}</option>
-              {(departments || []).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-            {showValidation && !department && (
-              <div className="invalid-feedback d-block">Compila il campo Reparto</div>
+          <form id="lmw-report-form" onSubmit={onSubmit} className="vstack gap-3">
+            <div className="row g-3">
+              <div className="col-12 col-md-4">
+                <label className="form-label">Data</label>
+                <input type="date" className="form-control" value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
+              <div className="col-12 col-md-4">
+                <label className="form-label">Privacy del segnalante</label>
+                <select
+                  className="form-select"
+                  value={privacy}
+                  onChange={(e) => setPrivacy(e.target.value as "Anonimo" | "Confidenziale")}
+                >
+                  <option value="Anonimo">Anonimo</option>
+                  <option value="Confidenziale">Confidenziale</option>
+                </select>
+              </div>
+            </div>
+
+            {privacy === 'Confidenziale' && (
+              <div className="alert alert-secondary">
+                <div className="row g-2">
+                  <div className="col-md-6">
+                    <label className="form-label">Nome</label>
+                    <input
+                      className="form-control"
+                      placeholder="Nome"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Cognome</label>
+                    <input
+                      className="form-control"
+                      placeholder="Cognome"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-text mt-1">Richiesto per le segnalazioni confidenziali.</div>
+              </div>
             )}
-          </div>
-          <div className="col-md-6">
-            <label className="form-label" htmlFor="category">Categoria</label>
-            <select id="category" className={"form-select" + (showValidation && (!!department && (categories || []).length > 0 && !category) ? " is-invalid" : "")} value={category} onChange={(e) => setCategory(e.target.value)} disabled={!department || (categories || []).length === 0}>
-              <option value="">{!department ? 'Seleziona reparto' : (lookupMsg ? 'Errore caricamento' : ((categories || []).length ? 'Seleziona…' : 'Caricamento...'))}</option>
-              {(categories || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            {lookupMsg && <div className="small text-muted mt-1">{lookupMsg}</div>}
-            {showValidation && (!!department && (categories || []).length > 0 && !category) && (
-              <div className="invalid-feedback d-block">Seleziona una categoria</div>
-            )}
-          </div>
-        </div>
 
-        {/* Sezione opzionale: Segnalazione vocale */}
-        <div className="mt-2">
-          <div className="form-check form-switch mt-1 mb-2 fw-semibold">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="voice-switch"
-              checked={voiceEnabled}
-              onChange={(e) => setVoiceEnabled(e.currentTarget.checked)}
-            />
-            <label className="form-check-label" htmlFor="voice-switch">
-              Aggiungi segnalazione vocale
-            </label>
-          </div>
-          {voiceEnabled && (
-            <VoiceSection
-              onChange={setVoiceFile}
-              onText={(txt) => setDescription((prev) => (prev ? `${prev}\n\n${txt}` : txt))}
-              onIncludeAttachmentChange={setVoiceInclude}
-              disabled={submitting}
-            />
-          )}
-        </div>
+            <div>
+              <label className="form-label" htmlFor="subject">Oggetto</label>
+              <input
+                id="subject"
+                className={"form-control" + (showValidation && !subject.trim() ? " is-invalid" : "")}
+                placeholder="Oggetto della segnalazione"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)} />
+              {showValidation && !subject.trim() && (
+                <div className="invalid-feedback d-block">Compila il campo Oggetto</div>
+              )}
+            </div>
 
-        <div>
-          <label className="form-label" htmlFor="description">Descrizione</label>
-          <textarea
-            id="description"
-            className={"form-control" + (showValidation && !description.trim() ? " is-invalid" : "")}
-            rows={8}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)} />
-          {showValidation && !description.trim() && (
-            <div className="invalid-feedback d-block">Compila la descrizione</div>
-          )}
-        </div>
+            <div className="row g-3">
+              <div className="col-md-6">
+                <label className="form-label" htmlFor="department">Reparto</label>
+                <select id="department" className={"form-select" + (showValidation && !department ? " is-invalid" : "")} value={department} onChange={(e) => { setDepartment(e.target.value); setCategory(''); }}>
+                  <option value="">{lookupMsg ? 'Errore caricamento' : ((departments || []).length ? 'Seleziona…' : 'Caricamento...')}</option>
+                  {(departments || []).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+                {showValidation && !department && (
+                  <div className="invalid-feedback d-block">Compila il campo Reparto</div>
+                )}
+              </div>
+              <div className="col-md-6">
+                <label className="form-label" htmlFor="category">Categoria</label>
+                <select id="category" className={"form-select" + (showValidation && (!!department && (categories || []).length > 0 && !category) ? " is-invalid" : "")} value={category} onChange={(e) => setCategory(e.target.value)} disabled={!department || (categories || []).length === 0}>
+                  <option value="">{!department ? 'Seleziona reparto' : (lookupMsg ? 'Errore caricamento' : ((categories || []).length ? 'Seleziona…' : 'Caricamento...'))}</option>
+                  {(categories || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                {lookupMsg && <div className="small text-muted mt-1">{lookupMsg}</div>}
+                {showValidation && (!!department && (categories || []).length > 0 && !category) && (
+                  <div className="invalid-feedback d-block">Seleziona una categoria</div>
+                )}
+              </div>
+            </div>
 
-        <div>
-          <label className="form-label">Allegati</label>
-          <div className="dropzone">
-            <input type="file" multiple onChange={handleFiles} />
-            <div className="text-muted small mt-2">File fino a ~100MB (demo: solo elenco)</div>
-            {attachments?.length ? (
-              <ul className="small mt-2 mb-0">
-                {Array.from(attachments).map((f, i) => <li key={i}>{f.name}</li>)}
-              </ul>
-            ) : null}
-          </div>
-        </div>
+            {/* Sezione opzionale: Segnalazione vocale */}
+            <div className="mt-2">
+              <div className="form-check form-switch mt-1 mb-2 fw-semibold">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="voice-switch"
+                  checked={voiceEnabled}
+                  onChange={(e) => setVoiceEnabled(e.currentTarget.checked)}
+                />
+                <label className="form-check-label" htmlFor="voice-switch">
+                  Aggiungi segnalazione vocale
+                </label>
+              </div>
+              {voiceEnabled && (
+                <VoiceSection
+                  onChange={setVoiceFile}
+                  onText={(txt) => setDescription((prev) => (prev ? `${prev}\n\n${txt}` : txt))}
+                  onIncludeAttachmentChange={setVoiceInclude}
+                  disabled={submitting}
+                />
+              )}
+            </div>
 
-        {/* Accettazione normativa obbligatoria */}
-        <div className="p-3 bg-light border rounded">
-          <div className="form-check">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="accept-norm"
-              checked={acceptNorm}
-              onChange={(e) => setAcceptNorm(e.currentTarget.checked)}
-            />
-            <label className="form-check-label" htmlFor="accept-norm">
-              Dichiaro di aver letto e compreso la normativa
-            </label>
-            {showValidation && !acceptNorm && (
-              <div className="text-danger small mt-1">Devi accettare la normativa</div>
-            )}
-          </div>
-        </div>
+            <div>
+              <label className="form-label" htmlFor="description">Descrizione</label>
+              <textarea
+                id="description"
+                className={"form-control" + (showValidation && !description.trim() ? " is-invalid" : "")}
+                rows={8}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)} />
+              {showValidation && !description.trim() && (
+                <div className="invalid-feedback d-block">Compila la descrizione</div>
+              )}
+            </div>
 
-        <div className="d-flex justify-content-end gap-2">
-          <Link to="/" className="btn btn-outline-secondary">Annulla</Link>
-          <button type="submit" className="btn btn-dark" disabled={submitting}>
-            {submitting ? "Invio…" : "Invia"}
-          </button>
+            <div>
+              <label className="form-label">Allegati</label>
+              <div className="dropzone">
+                <input type="file" multiple onChange={handleFiles} />
+                <div className="text-muted small mt-2">File fino a ~100MB (demo: solo elenco)</div>
+                {attachments?.length ? (
+                  <ul className="small mt-2 mb-0">
+                    {Array.from(attachments).map((f, i) => <li key={i}>{f.name}</li>)}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Accettazione normativa obbligatoria */}
+            <div className="p-3 bg-light border rounded">
+              <div className="form-check">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="accept-norm"
+                  checked={acceptNorm}
+                  onChange={(e) => setAcceptNorm(e.target.checked)}
+                />
+                <label className="form-check-label" htmlFor="accept-norm">
+                  Dichiaro di aver letto e compreso la normativa
+                </label>
+                {showValidation && !acceptNorm && (
+                  <div className="text-danger small mt-1">Devi accettare la normativa</div>
+                )}
+              </div>
+            </div>
+
+            <div className="d-flex justify-content-end gap-2">
+              <Link to="/" className="btn btn-outline-secondary">Annulla</Link>
+              <button type="submit" className="btn btn-dark" disabled={submitting}>
+                {submitting ? "Invio..." : "Invia"}
+              </button>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
 
       {/* Toast error top-right (fixed to viewport) */}
       <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1080 }}>

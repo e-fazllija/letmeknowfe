@@ -87,9 +87,10 @@ const NotificationBell: React.FC = () => {
     <div className="dropdown me-3">
       <button
         ref={btnRef}
-        className="btn btn-link position-relative d-flex align-items-center"
+        className="btn btn-link position-relative d-flex align-items-center text-white"
         type="button"
         aria-label="Notifiche"
+        style={{ color: "#fff" }}
         onMouseDown={(e) => {
           // Mantieni la tendina aperta al click sulla campanella
           e.preventDefault();
