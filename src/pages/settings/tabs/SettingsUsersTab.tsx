@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Col, Form, Row, Spinner, Table, Toast, ToastContainer } from 'react-bootstrap';
+import { Alert, Badge, Button, Col, Form, OverlayTrigger, Row, Spinner, Table, Toast, ToastContainer, Tooltip } from 'react-bootstrap';
 import api, { v1 } from '@/lib/api';
 
-type TenantUser = { id: string; email?: string; name?: string; role?: string; createdAt?: string };
+type TenantUser = { id: string; email?: string; name?: string; role?: string; createdAt?: string; isOwner?: boolean };
 
 export default function SettingsUsersTab() {
   const [items, setItems] = useState<TenantUser[]>([]);
@@ -21,7 +21,14 @@ export default function SettingsUsersTab() {
     try {
       const res = await api.get(v1('tenant/users'), { withCredentials: true });
       const arr = Array.isArray(res.data) ? (res.data as any[]) : [];
-      setItems(arr.map((u) => ({ id: String(u.id), email: u.email, name: u.name || u.displayName, role: u.role, createdAt: u.createdAt })));
+      setItems(arr.map((u) => ({
+        id: String(u.id),
+        email: u.email,
+        name: u.name || u.displayName,
+        role: u.role,
+        createdAt: u.createdAt,
+        isOwner: !!u.isOwner,
+      })));
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || 'Errore caricamento utenti');
     } finally {
@@ -98,7 +105,10 @@ export default function SettingsUsersTab() {
 
   return (
     <div>
-      <h6 className="mb-3">Utenti del tenant</h6>
+      <h6 className="mb-1">Utenti del tenant</h6>
+      <div className="text-muted small mb-3">
+        L'owner è il primo utente creato nel tenant: è unico e mantiene i permessi di amministratore.
+      </div>
 
       {/* Invite user */}
       <Form onSubmit={onCreateUser} className="mb-4">
@@ -141,39 +151,55 @@ export default function SettingsUsersTab() {
           <thead>
             <tr>
               <th>Email</th>
-              <th style={{ width: 110 }}>Ruolo</th>
+              <th style={{ width: 150 }} className="text-nowrap">Ruolo</th>
+              <th style={{ width: 110 }} className="text-nowrap">Owner</th>
               <th style={{ width: 140 }} className="text-nowrap">Creato</th>
               <th style={{ width: 200 }} className="text-nowrap">Azioni</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((u) => (
-              <tr key={u.id}>
-                <td>{u.email || <span className="text-muted">—</span>}</td>
-                <td className="text-nowrap">
-                  {u.role ? (
-                    <Badge bg={roleColor(u.role)}>{u.role}</Badge>
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </td>
-                <td className="text-nowrap">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : <span className="text-muted">—</span>}</td>
-                <td className="text-nowrap">
-                  {['AGENT','AUDITOR'].includes(String(u.role || '').toUpperCase()) ? (
-                    <div className="d-flex gap-2 justify-content-nowrap">
-                      <Button size="sm" variant="warning" onClick={() => onDeactivateUser(u)} disabled={deletingId === u.id}>
-                        {deletingId === u.id ? <Spinner size="sm" animation="border" /> : 'Disattiva'}
-                      </Button>
-                      <Button size="sm" variant="danger" onClick={() => onHardDeleteUser(u)} disabled={deletingId === u.id}>
-                        Elimina
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {items.map((u) => {
+              const roleUp = String(u.role || '').toUpperCase();
+              const manageable = ['AGENT','AUDITOR'].includes(roleUp);
+              return (
+                <tr key={u.id}>
+                  <td className="align-middle">{u.email || <span className="text-muted">-</span>}</td>
+                  <td className="text-nowrap align-middle">
+                    {u.role ? (
+                      <Badge bg={roleColor(u.role)}>{roleUp}</Badge>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
+                  </td>
+                  <td className="text-nowrap align-middle">
+                    {u.isOwner ? (
+                      <OverlayTrigger placement="top" overlay={<Tooltip id={`owner-${u.id}`}>Owner: primo utente creato, unico e con permessi estesi.</Tooltip>}>
+                        <Badge bg="success">Sì</Badge>
+                      </OverlayTrigger>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
+                  </td>
+                  <td className="text-nowrap align-middle">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : <span className="text-muted">-</span>}</td>
+                  <td className="text-nowrap align-middle">
+                    {u.isOwner ? (
+                      <span className="text-muted small">Owner non modificabile</span>
+                    ) : manageable ? (
+                      <div className="d-flex gap-2 justify-content-nowrap">
+                        <Button size="sm" variant="warning" onClick={() => onDeactivateUser(u)} disabled={deletingId === u.id}>
+                          {deletingId === u.id ? <Spinner size="sm" animation="border" /> : 'Disattiva'}
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => onHardDeleteUser(u)} disabled={deletingId === u.id}>
+                          Elimina
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
       )}
@@ -191,10 +217,9 @@ function roleColor(role?: string): 'primary' | 'secondary' | 'warning' | 'dark' 
   switch (String(role || '').toUpperCase()) {
     case 'ADMIN': return 'dark';
     case 'AGENT': return 'primary';
+    case 'AUDITOR': return 'info';
+    case 'OWNER': return 'warning';
     case 'USER': return 'secondary';
     default: return 'info';
   }
 }
-
-
-
