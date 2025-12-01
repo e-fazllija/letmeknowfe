@@ -54,7 +54,6 @@ export default function SettingsBillingTab() {
 
   const subStatus = (subscription?.status || '').toUpperCase();
   const canCheckout = !subStatus || ['PENDING_PAYMENT', 'EXPIRED', 'CANCELED'].includes(subStatus);
-  const portalOnly = ['ACTIVE', 'TRIALING', 'PAST_DUE'].includes(subStatus);
   const nextBillingRaw = (subscription as any)?.nextBillingAt || (subscription as any)?.nextBillingOn || (subscription as any)?.nextInvoiceAt;
   const nextBillingFmt = formatDate(nextBillingRaw);
 

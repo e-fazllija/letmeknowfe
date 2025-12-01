@@ -59,6 +59,11 @@ const BaseSchema = z
 type FormData = z.input<typeof BaseSchema>;
 const Schema = BaseSchema;
 const DEBUG_FORM = import.meta.env.VITE_DEBUG_REPORT_FORM === "true";
+type NewReportPayload = {
+  departmentId?: string;
+  categoryId?: string;
+  [key: string]: unknown;
+};
 
 export default function NewReport() {
   const navigate = useNavigate();
@@ -107,15 +112,21 @@ export default function NewReport() {
       const src = (REPORT_SOURCES as readonly string[]).includes(String(data.source)) ? data.source : "OTHER";
       const prv = String(data.privacyMode) === "CONFIDENZIALE" ? "CONFIDENZIALE" : "ANONIMO";
 
-      const payload = {
+      const payload: NewReportPayload & {
+        date: string;
+        source: string;
+        privacy: string;
+        title: string;
+        summary: string;
+      } = {
         date: new Date(data.date).toISOString(),
         source: src,
         privacy: prv,
         title: (data.title ?? "").trim(),
         summary: ((data as any).summary?.trim?.() || data.description?.trim() || ""),
-        departmentId: data.department,
-        categoryId: data.category,
-      } as const;
+        departmentId: String(data.department ?? ""),
+        categoryId: String(data.category ?? ""),
+      };
 
       let attachments: Array<{ fileName:string; mimeType:string; sizeBytes:number; storageKey:string; proof?:string }> = [];
       try {
@@ -153,8 +164,8 @@ export default function NewReport() {
           date: payload.date,
           source: payload.source as any,
           subject: payload.title,
-          departmentId: payload.departmentId,
-          categoryId: payload.categoryId,
+          departmentId: payload.departmentId ?? "",
+          categoryId: payload.categoryId ?? "",
           description: payload.summary,
           privacy: prv,
           ...(prv === "CONFIDENZIALE" && String(data.name ?? "").trim() ? { reporterName: String(data.name ?? "").trim() } : {}),

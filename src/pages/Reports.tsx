@@ -1,6 +1,6 @@
 // src/pages/Reports.tsx
 import { useEffect, useMemo, useState } from "react";
-import { Button, Table, Form, Spinner, Pagination, InputGroup, Card, Row, Col, Alert } from "react-bootstrap";
+import { Button, Table, Form, Spinner, Pagination, Card, Row, Col, Alert } from "react-bootstrap";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useReports } from "@/hooks/useReports";
 import { useDepartments } from "@/hooks/useDepartments";

@@ -52,7 +52,13 @@ export type Subscription = {
   endsAt?: string | null;
 };
 export type PaymentMethod = { type: "CARTA" | "BONIFICO"; masked: string };
-export type TemplateQuestion = { id: string; label: string; order: number };
+export type TemplateQuestion = {
+  id?: string;
+  label: string;
+  order: number;
+  type?: string;
+  required?: boolean;
+};
 export type Template = { id: string; name: string; createdAt?: string; updatedAt?: string; questions: TemplateQuestion[] };
 export type MaybeFeatureOff<T> = T & { __featureDisabled?: true };
 

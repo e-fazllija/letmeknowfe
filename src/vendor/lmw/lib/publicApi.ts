@@ -35,7 +35,6 @@ export type PublicReplyInput = {
 const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || '';
 // Default '/v1' when not provided to ensure Vite proxy in dev
 const API_PREFIX = (import.meta as any).env?.VITE_API_PREFIX || '/v1';
-const IS_DEV = !!(import.meta as any).env?.DEV;
 
 function readTenantId(): string {
   try {

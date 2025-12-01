@@ -15,11 +15,6 @@ const BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL as string | 
 let refreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
-function isMutating(method?: string) {
-  const m = (method || "").toUpperCase();
-  return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
-}
-
 // Axios instance
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL, // must already include /v1 when needed
@@ -88,7 +83,6 @@ api.interceptors.response.use(
 
     if (status === 401 && original && !original._retry) {
       // Never refresh on the refresh/login/mfa routes to avoid loops
-      const isAuthRoute = url.includes("tenant/auth/");
       const isRefresh = url.endsWith("tenant/auth/refresh");
       if (!isRefresh && !url.endsWith("tenant/auth/login") && !url.endsWith("tenant/auth/mfa/complete")) {
         try {

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Navigate, useLocation, useParams } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth, isAuditor } from '@/context/AuthContext';
 
 /** Blocks auditor from visiting mutating routes and redirects to read-only detail or list. */

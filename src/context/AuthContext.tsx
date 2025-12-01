@@ -1,7 +1,7 @@
 // src/context/AuthContext.tsx
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { clearReportsLookupsCache, saveMfaContext } from "@/lib/api";
-import { api as http, me as apiMe, refresh as apiRefresh, logout as apiLogout, completeMfa as apiCompleteMfa, login as apiLogin } from "@/api/api";
+import { me as apiMe, refresh as apiRefresh, logout as apiLogout, completeMfa as apiCompleteMfa, login as apiLogin } from "@/api/api";
 import { useNavigate } from "react-router-dom";
 import { signupTenantUser } from "@/lib/auth";
 
@@ -49,7 +49,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const STORAGE_KEY = "letmeknow_auth";
 const EMAIL_KEY = "lmw_user_email";
 const ROLE_KEY  = "lmw_user_role";
-const TENANT_KEY = "lmw_client_id";
 const TOKEN_KEY  = "lmw_token";
 
 /* --- Permission map per ruolo (frontend) --- */

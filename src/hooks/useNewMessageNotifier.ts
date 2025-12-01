@@ -17,7 +17,7 @@ export function useNewMessageNotifier(params: {
   const prevLen = useRef<number>(0);
 
   useEffect(() => {
-    const { messages, reportId } = params;
+    const { messages } = params;
 
     // al primo load, memorizza ma non notifica
     if (!booted.current) {

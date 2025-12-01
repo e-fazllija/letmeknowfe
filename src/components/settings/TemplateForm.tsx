@@ -20,7 +20,15 @@ export default function TemplateForm({ show, onClose, initial, onSubmit }: { sho
     const label = qLabel.trim();
     if (!label) return;
     const order = (questions[questions.length-1]?.order ?? 0) + 1;
-    setQuestions(prev => [...prev, { type: qType, label, required: false, order }]);
+    setQuestions(prev => [
+      ...prev,
+      {
+        type: qType,
+        label,
+        required: false,
+        order,
+      },
+    ]);
     setQLabel('');
   };
 

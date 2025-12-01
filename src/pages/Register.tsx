@@ -28,7 +28,6 @@ const EMPLOYEE_RANGE: EmployeeRange[] = [
   "OLTRE_250",
 ];
 const CONTRACT_TERM: ContractTerm[] = ["ONE_YEAR", "THREE_YEARS"];
-const INSTALLMENT_PLAN: InstallmentPlan[] = ["ONE_SHOT", "SEMESTRALE", "TRIMESTRALE"];
 
 /* -------------------- tipi -------------------- */
 type FormState = {

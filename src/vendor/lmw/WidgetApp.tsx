@@ -1,4 +1,3 @@
-import React from "react";
 import { HashRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import ReportForm from "./components/ReportForm";
