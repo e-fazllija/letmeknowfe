@@ -665,6 +665,9 @@ const assigneeLabel: string = useMemo(() => {
     const catId = String((report as any)?.categoryId ?? (report as any)?.category?.id ?? "");
     return catNameMap.get(catId) || "-";
   })();
+  const privacyMode = String((report as any)?.privacy || (report as any)?.privacyMode || "").toUpperCase();
+  const privacyLabel = privacyMode === "CONFIDENZIALE" ? "Confidenziale" : privacyMode === "ANONIMO" ? "Anonima" : "-";
+  const reporterLabel = reporterName || (privacyMode === "CONFIDENZIALE" ? "Non indicato" : null);
 
   return (
     <div className="page-shell">
@@ -690,6 +693,16 @@ const assigneeLabel: string = useMemo(() => {
                 <span className="badge rounded-pill bg-light text-dark border px-3 py-2 fw-semibold">
                   Categoria: {categoryLabel}
                 </span>
+                {privacyLabel !== "-" && (
+                  <span className="badge rounded-pill bg-light text-dark border px-3 py-2 fw-semibold">
+                    Privacy: {privacyLabel}
+                  </span>
+                )}
+                {privacyMode === "CONFIDENZIALE" && reporterLabel && (
+                  <span className="badge rounded-pill bg-light text-dark border px-3 py-2 fw-semibold">
+                    Segnalante: {auditor ? "Riservato" : reporterLabel}
+                  </span>
+                )}
               </div>
             </div>
             <div className="d-flex flex-column align-items-end gap-2">
