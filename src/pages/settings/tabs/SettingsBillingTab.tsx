@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Button, Col, Form, Row, Spinner, Toast, ToastContainer } from 'react-bootstrap';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Col, Form, Row, Spinner, Toast, ToastContainer, ListGroup } from 'react-bootstrap';
 import {
   getBillingProfile,
   updateBillingProfile,
   getSubscription,
   type BillingProfile,
   type Subscription,
+  updateSubscription,
   createCheckoutSession,
   createPortalSession,
 } from '@/lib/settings.service';
@@ -14,6 +15,7 @@ export default function SettingsBillingTab() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<BillingProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [installmentPlan, setInstallmentPlan] = useState<'ONE_SHOT' | 'SEMESTRALE' | 'TRIMESTRALE'>('ONE_SHOT');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalHint, setPortalHint] = useState(false);
@@ -33,13 +35,14 @@ export default function SettingsBillingTab() {
         ]);
         setProfile(p);
         setSubscription(s);
+        if (s?.installmentPlan) {
+          setInstallmentPlan(s.installmentPlan as any);
+        }
       } finally {
         setLoading(false);
       }
     })();
   }, []);
-
-  if (loading) return <Spinner animation="border" size="sm" />;
 
   const defaultProfile: BillingProfile = {
     companyName: '',
@@ -58,6 +61,44 @@ export default function SettingsBillingTab() {
   const canCheckout = !subStatus || ['PENDING_PAYMENT', 'EXPIRED', 'CANCELED'].includes(subStatus);
   const nextBillingRaw = (subscription as any)?.nextBillingAt || (subscription as any)?.nextBillingOn || (subscription as any)?.nextInvoiceAt;
   const nextBillingFmt = formatDate(nextBillingRaw);
+
+  const plans = useMemo(
+    () => [
+      {
+        id: 'ONE_SHOT' as const,
+        title: 'Annuale',
+        subtitle: 'Pagamento in un\'unica soluzione',
+        priceLabel: '€ 430',
+        cadence: 'ricorre ogni 12 mesi (~€ 35,8/mese)',
+        badge: 'Migliore offerta',
+        description: 'Risparmia ~10% rispetto al piano trimestrale pagando 12 mesi anticipati.',
+        perks: [
+          'Customer Portal per fatture e metodi di pagamento',
+          'Cambio piano in ogni momento',
+          'Supporto prioritario',
+          'Totale trasparenza sui rinnovi',
+        ],
+      },
+      {
+        id: 'TRIMESTRALE' as const,
+        title: 'Trimestrale',
+        subtitle: 'Pagamento ricorrente',
+        priceLabel: '€ 120',
+        cadence: 'ricorre ogni 3 mesi (~€ 40/mese)',
+        badge: 'Flessibile',
+        description: 'Paghi ogni 3 mesi, puoi cambiare in qualsiasi momento.',
+        perks: [
+          'Customer Portal per fatture e metodi di pagamento',
+          'Cambio piano in ogni momento',
+          'Supporto standard',
+          'Trasparenza su rinnovi e storno',
+        ],
+      },
+    ],
+    [],
+  );
+
+  if (loading) return <Spinner animation="border" size="sm" />;
 
   const openPortal = async () => {
     try {
@@ -78,6 +119,20 @@ export default function SettingsBillingTab() {
   const openCheckout = async () => {
     try {
       setCheckoutLoading(true);
+      // Aggiorna il piano scelto prima di creare la sessione di checkout
+      if (subscription && subscription.installmentPlan !== installmentPlan) {
+        try {
+          const updated = await updateSubscription({ installmentPlan });
+          setSubscription(updated);
+        } catch (e) {
+          setToast({
+            show: true,
+            message: 'Errore aggiornamento piano prima del pagamento',
+            variant: 'danger',
+          });
+          return;
+        }
+      }
       const { url } = await createCheckoutSession();
       window.location.href = url;
     } catch (err: any) {
@@ -250,6 +305,85 @@ export default function SettingsBillingTab() {
             <p><strong>Stato:</strong> {subscription.status}</p>
             <p><strong>Inizio:</strong> {subscription.startsAt || '-'}</p>
             <p><strong>Prossima fatturazione:</strong> {nextBillingFmt}</p>
+
+            <div className="mt-3">
+              <Form.Label className="fw-semibold mb-2">Scegli il piano</Form.Label>
+              <div className="d-flex flex-wrap gap-3">
+                {plans.map((p) => {
+                  const active = installmentPlan === p.id;
+                  return (
+                    <div
+                      key={p.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setInstallmentPlan(p.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setInstallmentPlan(p.id);
+                        }
+                      }}
+                      className="flex-grow-1"
+                      style={{ minWidth: 260, maxWidth: 380, cursor: 'pointer' }}
+                    >
+                      <div
+                        className="border rounded h-100 d-flex flex-column"
+                        style={{
+                          borderColor: active ? 'var(--brand-500)' : 'var(--ink-300)',
+                          boxShadow: active ? '0 8px 28px rgba(20,184,166,0.24)' : '0 6px 18px rgba(15,23,42,0.08)',
+                          background: active ? 'linear-gradient(180deg, #fff, #f6fffd)' : '#fff',
+                          transition: 'all 140ms ease',
+                          padding: '18px 18px 14px',
+                        }}
+                      >
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <div>
+                            <div className="fw-bold fs-5" style={{ color: 'var(--brand-700)' }}>
+                              {p.title}
+                            </div>
+                            <div className="text-muted small">{p.cadence}</div>
+                          </div>
+                          <span
+                            className="badge"
+                            style={{
+                              backgroundColor: active ? 'var(--brand-500)' : '#f1f5f9',
+                              color: active ? '#fff' : '#0f172a',
+                            }}
+                          >
+                            {p.badge}
+                          </span>
+                        </div>
+
+                        <div className="d-flex align-items-baseline gap-1 mb-2">
+                          <span className="fs-4 fw-bold" style={{ color: 'var(--ink-900)' }}>
+                            {p.priceLabel}
+                          </span>
+                          <span className="text-muted small">/mese equivalente</span>
+                        </div>
+
+                        <div className="mb-3 small text-muted">{p.description}</div>
+
+                        <Button
+                          variant={active ? 'success' : 'outline-secondary'}
+                          className="w-100 mb-3"
+                          onClick={() => setInstallmentPlan(p.id)}
+                        >
+                          {active ? 'Selezionato' : 'Seleziona'}
+                        </Button>
+
+                        <ListGroup variant="flush" className="small flex-grow-1">
+                          {p.perks.map((perk) => (
+                            <ListGroup.Item key={perk} className="border-0 px-0 py-1 bg-transparent text-muted">
+                              {perk}
+                            </ListGroup.Item>
+                          ))}
+                        </ListGroup>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className="mt-2 d-flex gap-2 flex-wrap">
               {canCheckout && (

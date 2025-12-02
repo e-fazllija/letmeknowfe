@@ -46,9 +46,11 @@ export type BillingProfile = {
   billingSdiCode?: string;
 };
 export type Subscription = {
+  id?: string;
   plan: string;
   cycle: "MENSILE" | "ANNUALE";
   status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+  installmentPlan?: "ONE_SHOT" | "SEMESTRALE" | "TRIMESTRALE";
   startsAt?: string | null;
   nextBillingAt?: string | null;
   endsAt?: string | null;
@@ -101,8 +103,9 @@ export const updateBillingProfile = (input: Partial<BillingProfile>) =>
   api.put(v1("tenant/billing/profile"), input).then(r => r.data as BillingProfile);
 export const getSubscription = () =>
   asFeature(api.get(v1("tenant/subscription")).then(r => r.data as Subscription)) as Promise<MaybeFeatureOff<Subscription>>;
-export const updateSubscription = (input: Partial<Pick<Subscription, "cycle" | "status">>) =>
-  api.put(v1("tenant/subscription"), input).then(r => r.data as Subscription);
+export const updateSubscription = (
+  input: Partial<Pick<Subscription, "cycle" | "status" | "installmentPlan">>,
+) => api.put(v1("tenant/subscription"), input).then(r => r.data as Subscription);
 export const getPaymentMethod = () =>
   asFeature(api.get(v1("tenant/payment-method")).then(r => r.data as PaymentMethod)) as Promise<MaybeFeatureOff<PaymentMethod>>;
 export const updatePaymentMethod = (input: PaymentMethod) =>

@@ -27,7 +27,6 @@ const EMPLOYEE_RANGE: EmployeeRange[] = [
   "DA_201_A_250",
   "OLTRE_250",
 ];
-const CONTRACT_TERM: ContractTerm[] = ["ONE_YEAR", "THREE_YEARS"];
 
 /* -------------------- tipi -------------------- */
 type FormState = {
@@ -387,68 +386,6 @@ await signupPublicClient(payload);
                     placeholder="Italia"
                     required
                   />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <hr />
-            <h5 className="mt-2">Abbonamento</h5>
-
-            <Row className="mt-1">
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Importo *</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    value={form.amount}
-                    onChange={(e) => set("amount", e.target.value)}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Valuta</Form.Label>
-                  <Form.Control
-                    value={form.currency}
-                    onChange={(e) => set("currency", e.target.value)}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Durata *</Form.Label>
-                  <Form.Select
-                    value={form.contractTerm}
-                    onChange={(e) =>
-                      set("contractTerm", e.target.value as ContractTerm)
-                    }
-                  >
-                    {CONTRACT_TERM.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Rateizzazione *</Form.Label>
-                  <Form.Select
-                    value={form.installmentPlan}
-                    onChange={(e) =>
-                      set("installmentPlan", e.target.value as InstallmentPlan)
-                    }
-                  >
-                    <option value="ONE_SHOT">Unica soluzione (annuale)</option>
-                    <option value="SEMESTRALE">2 rate (semestrali)</option>
-                    <option value="TRIMESTRALE">4 rate (trimestrali)</option>
-                  </Form.Select>
                 </Form.Group>
               </Col>
             </Row>
