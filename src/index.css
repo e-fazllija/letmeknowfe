@@ -41,10 +41,11 @@ a:hover { color: var(--brand-500); text-decoration: none; }
   position: sticky;
   top: 0;
   z-index: 1030;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--ink-300);
-  box-shadow: 0 6px 30px rgba(15, 23, 42, 0.08);
+  background:
+    radial-gradient(circle at 16% 18%, rgba(226, 252, 247, 0.28), rgba(20, 184, 166, 0.12)),
+    linear-gradient(135deg, #0f172a 0%, #0f766e 55%, #14b8a6 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.32);
 }
 
 .header-bar {
@@ -62,6 +63,11 @@ a:hover { color: var(--brand-500); text-decoration: none; }
   color: var(--ink-900);
 }
 
+.app-header .brand-link,
+.app-header .brand-link:hover {
+  color: #fff;
+}
+
 .brand-avatar {
   width: 48px;
   height: 48px;
@@ -73,6 +79,12 @@ a:hover { color: var(--brand-500); text-decoration: none; }
   box-shadow: var(--shadow-quiet);
 }
 
+.app-header .brand-avatar {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+}
+
 .brand-eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -80,9 +92,17 @@ a:hover { color: var(--brand-500); text-decoration: none; }
   color: var(--ink-500);
 }
 
+.app-header .brand-eyebrow {
+  color: rgba(255, 255, 255, 0.78);
+}
+
 .brand-title {
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.app-header .brand-title {
+  color: #fff;
 }
 
 .page-shell { padding: 8px 0 24px; }
@@ -191,7 +211,13 @@ a:hover { color: var(--brand-500); text-decoration: none; }
 
 .auth-hero-pane > * { position: relative; }
 
-.auth-logo { max-width: 220px; height: auto; }
+.auth-logo {
+  display: block;
+  max-width: 220px;
+  height: auto;
+  margin-left: auto;
+  margin-right: auto;
+}
 
 .auth-bullet {
   display: flex;

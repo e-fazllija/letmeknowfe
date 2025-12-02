@@ -50,6 +50,8 @@ export default function SettingsBillingTab() {
     province: '',
     country: '',
     billingEmail: '',
+    billingPec: '',
+    billingSdiCode: '',
   };
 
   const subStatus = (subscription?.status || '').toUpperCase();
@@ -179,6 +181,36 @@ export default function SettingsBillingTab() {
                     setProfile((p) => ({
                       ...(p || defaultProfile),
                       billingEmail: e.target.value,
+                    }))
+                  }
+                />
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>PEC</Form.Label>
+                <Form.Control
+                  placeholder="pec@pec.it"
+                  value={profile?.billingPec || ''}
+                  onChange={(e) =>
+                    setProfile((p) => ({
+                      ...(p || defaultProfile),
+                      billingPec: e.target.value,
+                    }))
+                  }
+                />
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>Codice SDI</Form.Label>
+                <Form.Control
+                  placeholder="AAAAAAA"
+                  value={profile?.billingSdiCode || ''}
+                  onChange={(e) =>
+                    setProfile((p) => ({
+                      ...(p || defaultProfile),
+                      billingSdiCode: e.target.value.toUpperCase(),
                     }))
                   }
                 />

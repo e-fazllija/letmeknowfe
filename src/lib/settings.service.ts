@@ -42,6 +42,8 @@ export type BillingProfile = {
   province: string;
   country: string;
   billingEmail: string;
+  billingPec?: string;
+  billingSdiCode?: string;
 };
 export type Subscription = {
   plan: string;
