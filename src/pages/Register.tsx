@@ -35,7 +35,6 @@ const EMPLOYEE_LABEL: Record<EmployeeRange, string> = {
   DA_201_A_250: "201 - 250",
   OLTRE_250: "Oltre 250",
 };
-const CONTRACT_TERM: ContractTerm[] = ["ONE_YEAR", "THREE_YEARS"];
 
 /* -------------------- tipi -------------------- */
 type FormState = {
