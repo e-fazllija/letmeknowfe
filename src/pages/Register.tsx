@@ -27,6 +27,15 @@ const EMPLOYEE_RANGE: EmployeeRange[] = [
   "DA_201_A_250",
   "OLTRE_250",
 ];
+const EMPLOYEE_LABEL: Record<EmployeeRange, string> = {
+  DA_0_A_50: "0 - 50",
+  DA_51_A_100: "51 - 100",
+  DA_101_A_150: "101 - 150",
+  DA_151_A_200: "151 - 200",
+  DA_201_A_250: "201 - 250",
+  OLTRE_250: "Oltre 250",
+};
+const CONTRACT_TERM: ContractTerm[] = ["ONE_YEAR", "THREE_YEARS"];
 
 /* -------------------- tipi -------------------- */
 type FormState = {
@@ -262,7 +271,7 @@ await signupPublicClient(payload);
                   >
                     {EMPLOYEE_RANGE.map((opt) => (
                       <option key={opt} value={opt}>
-                        {opt}
+                        {EMPLOYEE_LABEL[opt] || opt}
                       </option>
                     ))}
                   </Form.Select>

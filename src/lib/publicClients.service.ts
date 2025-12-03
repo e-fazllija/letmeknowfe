@@ -98,7 +98,6 @@ export async function signupPublicClient(payload: SignupPublicClientReq): Promis
       installmentPlan: payload.subscription.installmentPlan,
       status: payload.subscription.status ?? "ACTIVE",
       startsAt: payload.subscription.startsAt ?? undefined,
-      nextBillingAt: payload.subscription.nextBillingAt ?? undefined,
       endsAt: payload.subscription.endsAt ?? undefined,
     },
     options: { idempotencyKey: ensureIdempotencyKey(payload.options?.idempotencyKey) },
