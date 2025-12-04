@@ -424,6 +424,15 @@ export default function ReportForm() {
                 />
                 <label className="form-check-label" htmlFor="accept-norm">
                   Dichiaro di aver letto e compreso la normativa
+                  {" "}
+                  <a
+                    href="https://www.anticorruzione.it/-/whistleblowing"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="link-primary"
+                  >
+                    (consulta la normativa aggiornata)
+                  </a>
                 </label>
                 {showValidation && !acceptNorm && (
                   <div className="text-danger small mt-1">Devi accettare la normativa</div>

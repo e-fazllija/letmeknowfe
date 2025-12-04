@@ -32,13 +32,12 @@ export type SignupPublicClientReq = {
   };
   subscription: {
     subscriptionPlanId?: string;
-    contractTerm: ContractTerm;
-    amount: number;
+    contractTerm?: ContractTerm;
+    amount?: number;
     currency?: string; // default EUR
-    installmentPlan: InstallmentPlan;
+    installmentPlan?: InstallmentPlan;
     status?: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "EXPIRED";
     startsAt?: string | null;
-    nextBillingAt?: string | null;
     endsAt?: string | null;
   };
   options?: { idempotencyKey?: string };
@@ -92,13 +91,13 @@ export async function signupPublicClient(payload: SignupPublicClientReq): Promis
     },
     subscription: {
       subscriptionPlanId,
-      contractTerm: payload.subscription.contractTerm,
-      amount: payload.subscription.amount,
-      currency: payload.subscription.currency ?? "EUR",
-      installmentPlan: payload.subscription.installmentPlan,
-      status: payload.subscription.status ?? "ACTIVE",
-      startsAt: payload.subscription.startsAt ?? undefined,
-      endsAt: payload.subscription.endsAt ?? undefined,
+      ...(payload.subscription.contractTerm ? { contractTerm: payload.subscription.contractTerm } : {}),
+      ...(payload.subscription.amount != null ? { amount: payload.subscription.amount } : {}),
+      ...(payload.subscription.currency ? { currency: payload.subscription.currency } : {}),
+      ...(payload.subscription.installmentPlan ? { installmentPlan: payload.subscription.installmentPlan } : {}),
+      ...(payload.subscription.status ? { status: payload.subscription.status } : {}),
+      ...(payload.subscription.startsAt ? { startsAt: payload.subscription.startsAt } : {}),
+      ...(payload.subscription.endsAt ? { endsAt: payload.subscription.endsAt } : {}),
     },
     options: { idempotencyKey: ensureIdempotencyKey(payload.options?.idempotencyKey) },
   };

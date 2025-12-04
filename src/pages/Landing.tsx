@@ -78,6 +78,14 @@ export default function Landing() {
                     <li>Log audit e monitoraggio accessi</li>
                     <li>Notifiche mirate e filtri avanzati</li>
                   </ul>
+                  <a
+                    href="https://www.anticorruzione.it/-/whistleblowing"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="small link-primary d-inline-block mt-2"
+                  >
+                    Consulta la normativa ANAC sul whistleblowing
+                  </a>
                 </Card.Body>
               </Card>
             </Col>

@@ -607,50 +607,6 @@ export default function RegisterClient() {
                     </Col>
                   </Row>
 
-                  <hr />
-                  <h5 className="mt-2">Sottoscrizione</h5>
-                  <Row className="mt-1">
-                    <Col md={4}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Importo *</Form.Label>
-                        <Form.Control
-                          type="number"
-                          step="0.01"
-                          value={form.amount}
-                          readOnly
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={4}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Valuta</Form.Label>
-                        <Form.Control value={form.currency} readOnly />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                  <Row>
-                    <Col md={4}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Durata</Form.Label>
-                        <Form.Control value="ANNUALE" readOnly />
-                      </Form.Group>
-                    </Col>
-                    <Col md={4}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Rateizzazione</Form.Label>
-                        <Form.Control
-                          value="Pagamento in un'unica soluzione (annuale) tramite Stripe"
-                          readOnly
-                        />
-                        <div className="form-text">
-                          Il pagamento avverra con carta tramite Stripe dopo
-                          l&apos;attivazione dell&apos;account, dalla sezione{" "}
-                          <strong>Impostazioni &gt; Billing</strong>.
-                        </div>
-                      </Form.Group>
-                    </Col>
-                  </Row>
-
                   <div className="d-flex gap-2">
                     <Button
                       type="submit"
