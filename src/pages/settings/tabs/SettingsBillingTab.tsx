@@ -19,6 +19,7 @@ export default function SettingsBillingTab() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalHint, setPortalHint] = useState(false);
+  const [lockMsg, setLockMsg] = useState<string | null>(null);
   const [toast, setToast] = useState<{
     show: boolean;
     message: string;
@@ -42,6 +43,14 @@ export default function SettingsBillingTab() {
         setLoading(false);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const msg = sessionStorage.getItem("lmw_billing_lock_msg");
+      if (msg) setLockMsg(msg);
+      sessionStorage.removeItem("lmw_billing_lock_msg");
+    } catch { /* ignore */ }
   }, []);
 
   const defaultProfile: BillingProfile = {
@@ -156,6 +165,11 @@ export default function SettingsBillingTab() {
 
   return (
     <div className="d-flex flex-column gap-4">
+      {lockMsg && (
+        <div className="alert alert-warning mb-0">
+          {lockMsg}
+        </div>
+      )}
       <section>
         <h6 className="mb-3">Profilo fatturazione</h6>
         <Form>

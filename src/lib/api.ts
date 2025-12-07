@@ -1,4 +1,4 @@
-// src/lib/api.ts
+﻿// src/lib/api.ts
 import axios from "axios";
 
 import type { Report, ReportMessage } from "./report.dto";
@@ -16,7 +16,7 @@ export function v1(p: string): string {
   // normalizza
   const normPrefix = PREFIX.endsWith("/") ? PREFIX.slice(0, -1) : PREFIX;
   const normUrl = url.startsWith("/") ? url : `/${url}`;
-  // gi� prefissato? ("/v1" oppure "/v1/...")
+  // già prefissato? ("/v1" oppure "/v1/...")
   if (normUrl === normPrefix || normUrl.startsWith(`${normPrefix}/`)) {
     return normUrl;
   }
@@ -28,7 +28,7 @@ console.log("[API] origin =", ORIGIN, " prefix =", PREFIX);
 // --- Public enums (aligned to BE) ---
 export const REPORT_SOURCES = ["WEB", "PHONE", "EMAIL", "OTHER"] as const;
 if (!Array.isArray(REPORT_SOURCES) || !REPORT_SOURCES.length) {
-  console.warn('[API] REPORT_SOURCES non definito o vuoto � controllare build.');
+  console.warn('[API] REPORT_SOURCES non definito o vuoto – controllare build.');
 }
 
 export const REPORT_PRIVACY = ["ANONIMO", "CONFIDENZIALE"] as const;
@@ -246,6 +246,23 @@ api.interceptors.response.use(
       return Promise.reject(mfaErr);
     }
 
+    // 403 tenant non-billing: reindirizza al billing lock con messaggio
+    if (status === 403) {
+      try {
+        const urlStr = String(err?.config?.url || "").toLowerCase();
+        const isTenant = urlStr.includes("/tenant/");
+        const isBilling = urlStr.includes("/tenant/billing/") || urlStr.includes("/public/billing/");
+        if (isTenant && !isBilling) {
+          const msgRaw = err?.response?.data?.message || "";
+          const msg = String(msgRaw).toLowerCase();
+          if (msg.includes("pagamento") || msg.includes("sospeso") || msg.includes("archiviato")) {
+            try { sessionStorage.setItem("lmw_billing_lock_msg", msgRaw || "Accesso limitato: completa il pagamento."); } catch {}
+            window.location.hash = "#/settings?tab=billing";
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
     // 401 -> refresh ultra-conservativo: mai su rotte auth/public/MFA/refresh, una sola volta sulle altre
     if (status === 401 && original) {
       const cfg: any = original || {};
@@ -310,7 +327,7 @@ export type ListReportsParams = {
 
 /**
  * Restituisce il clientId per le chiamate lista report.
- * Priorità:
+ * PrioritÃ :
  *  a) dal JWT (campo clientId/tenantId)
  *  b) (se disponibile) da storage legacy
  *  c) fallback da localStorage (lmw_client_id | lmw_tenant_id)
@@ -340,7 +357,7 @@ export async function listReports(params?: ListReportsParams): Promise<Report[]>
   // --- Append clientId query param (required by backend) ---
   const clientId = getClientId();
   if (clientId && query.clientId == null) query.clientId = clientId;
-  // Pass-through dei parametri per futura compatibilità server-side
+  // Pass-through dei parametri per futura compatibilitÃ  server-side
   const { data } = await api.get(v1("tenant/reports"), {
     params: query,
   });
@@ -422,6 +439,7 @@ export async function refreshAccess(): Promise<string | null> {
     return null;
   }
 }
+
 
 
 

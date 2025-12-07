@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { getBillingStatus } from "@/lib/settings.service";
 
 export default function BillingSuccess() {
   const navigate = useNavigate();
@@ -19,8 +20,18 @@ export default function BillingSuccess() {
     } catch {
       // ignore
     }
-    // Dopo aver pulito il flag, porta l'utente alla home
-    navigate("/home", { replace: true });
+    (async () => {
+      try {
+        const status = await getBillingStatus().catch(() => null);
+        if ((status as any)?.billingLocked) {
+          navigate("/settings?tab=billing", { replace: true });
+          return;
+        }
+      } catch {
+        // ignore
+      }
+      navigate("/home", { replace: true });
+    })();
   }, [location.search, navigate]);
 
   return (

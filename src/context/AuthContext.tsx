@@ -4,6 +4,7 @@ import { clearReportsLookupsCache, saveMfaContext } from "@/lib/api";
 import { me as apiMe, refresh as apiRefresh, logout as apiLogout, completeMfa as apiCompleteMfa, login as apiLogin } from "@/api/api";
 import { useNavigate } from "react-router-dom";
 import { signupTenantUser } from "@/lib/auth";
+import { getBillingStatus } from "@/lib/settings.service";
 
 export type Role = "admin" | "agent" | "user" | "superhost" | "auditor";
 export type Permission =
@@ -222,7 +223,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const roleNorm = data.role ? String(data.role).toLowerCase() as Role : 'user';
         setUser({ id: resolveUserId(data), email: data.email ?? email, role: (roleNorm as Role), permissions: Array.isArray(data.permissions) ? data.permissions : [] });
         setAuthPhase('auth');
-        navigate('/home', { replace: true });
+        try {
+          const status: any = await getBillingStatus().catch(() => null);
+          const billingLocked = !!status?.billingLocked;
+          const clientStatus = String(status?.clientStatus || "").toUpperCase();
+          const lockMessage =
+            status?.lockMessage ||
+            (billingLocked
+              ? clientStatus === "SUSPENDED"
+                ? "Account sospeso per mancato pagamento."
+                : clientStatus === "PENDING_PAYMENT"
+                ? "Completa il pagamento per attivare l'account."
+                : clientStatus === "ARCHIVED"
+                ? "Account archiviato: contatta il supporto per maggiori dettagli."
+                : "Accesso limitato: completa il pagamento."
+              : "");
+          if (billingLocked) {
+            try {
+              if (lockMessage) sessionStorage.setItem("lmw_billing_lock_msg", lockMessage);
+            } catch {}
+            navigate('/settings?tab=billing', { replace: true });
+            return;
+          }
+          navigate('/home', { replace: true });
+        } catch {
+          navigate('/home', { replace: true });
+        }
         return;
       }
       setAuthPhase('login');

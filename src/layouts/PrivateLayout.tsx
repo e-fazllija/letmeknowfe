@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Navbar from "react-bootstrap/Navbar";
 import Container from "react-bootstrap/Container";
@@ -8,6 +8,7 @@ import Sidebar from "../components/Sidebar";
 import { useAuth, isAuditor } from "../context/AuthContext";
 import { NotificationsProvider } from "@/context/NotificationsContext";
 import NotificationBell from "@/components/common/NotificationBell";
+import { getBillingStatus, type BillingStatus } from "@/lib/settings.service";
 
 export function UserBadge() {
   const auth: any = useAuth();
@@ -19,6 +20,10 @@ export function UserBadge() {
 export function PrivateLayout() {
   const auth: any = useAuth();
   const navigate = useNavigate();
+  const [billingLock, setBillingLock] = useState<{
+    message: string;
+    lastPaymentStatus?: string | null;
+  } | null>(null);
 
   function handleLogout() {
     try {
@@ -93,6 +98,55 @@ export function PrivateLayout() {
     }
   }, [navigate]);
 
+  // Billing lock globale: chiama GET /tenant/billing/status all'avvio
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = (await getBillingStatus().catch(() => null)) as BillingStatus | null;
+        if (!status || cancelled) return;
+
+        const locked = !!status.billingLocked;
+        const clientStatus = String(status.clientStatus || "").toUpperCase();
+        const message =
+          status.lockMessage ||
+          (locked
+            ? clientStatus === "SUSPENDED"
+              ? "Account sospeso per mancato pagamento."
+              : clientStatus === "PENDING_PAYMENT"
+              ? "Completa il pagamento per attivare l'account."
+              : clientStatus === "ARCHIVED"
+              ? "Account archiviato: contatta il supporto per maggiori dettagli."
+              : "Accesso limitato: completa il pagamento."
+            : "");
+
+        if (locked && message) {
+          setBillingLock({
+            message,
+            lastPaymentStatus: status.lastPaymentStatus ?? null,
+          });
+          try {
+            sessionStorage.setItem("lmw_billing_lock_msg", message);
+          } catch {
+            // ignore
+          }
+        } else {
+          setBillingLock(null);
+          try {
+            sessionStorage.removeItem("lmw_billing_lock_msg");
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // fallback: 403 interceptor / login continueranno a gestire eventuali lock
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <NotificationsProvider>
       <div className="lmw-shell">
@@ -135,6 +189,29 @@ export function PrivateLayout() {
               </Nav>
             </Container>
           </Navbar>
+
+          {billingLock && (
+            <div
+              role="status"
+              aria-live="polite"
+              className={
+                "mb-0 alert " +
+                (billingLock.lastPaymentStatus === "FAILED" ? "alert-danger" : "alert-warning")
+              }
+              style={{ borderRadius: 0 }}
+            >
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <span>{billingLock.message}</span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-dark"
+                  onClick={() => navigate("/settings?tab=billing")}
+                >
+                  Vai a fatturazione
+                </button>
+              </div>
+            </div>
+          )}
 
           {isAuditor(auth?.user) && (
             <div

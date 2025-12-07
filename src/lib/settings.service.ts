@@ -55,6 +55,13 @@ export type Subscription = {
   nextBillingAt?: string | null;
   endsAt?: string | null;
 };
+export type BillingStatus = {
+  clientStatus?: "PENDING_PAYMENT" | "ACTIVE" | "SUSPENDED" | "ARCHIVED";
+  subscriptionStatus?: Subscription["status"] | "PENDING_PAYMENT" | null;
+  billingLocked?: boolean;
+  lockMessage?: string | null;
+  lastPaymentStatus?: string | null;
+};
 export type PaymentMethod = { type: "CARTA" | "BONIFICO"; masked: string };
 export type TemplateQuestion = {
   id?: string;
@@ -103,6 +110,8 @@ export const updateBillingProfile = (input: Partial<BillingProfile>) =>
   api.put(v1("tenant/billing/profile"), input).then(r => r.data as BillingProfile);
 export const getSubscription = () =>
   asFeature(api.get(v1("tenant/subscription")).then(r => r.data as Subscription)) as Promise<MaybeFeatureOff<Subscription>>;
+export const getBillingStatus = () =>
+  api.get(v1("tenant/billing/status")).then(r => r.data as BillingStatus);
 export const updateSubscription = (
   input: Partial<Pick<Subscription, "cycle" | "status" | "installmentPlan">>,
 ) => api.put(v1("tenant/subscription"), input).then(r => r.data as Subscription);
