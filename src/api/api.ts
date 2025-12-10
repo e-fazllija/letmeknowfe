@@ -1,15 +1,20 @@
 import axios from "axios";
 import type { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 
-// Base URL comes from VITE_API_BASE_URL. For dev, it's typically http://localhost:3000/v1
+// Base URL comes from VITE_API_BASE_URL (origin only, no /v1).
+// VITE_API_PREFIX provides the versioned prefix (e.g. /v1) for all relative paths.
 function normalizeBaseUrl(raw?: string): string {
   const s = String(raw || "").trim();
-  if (!s) return "";
-  // drop trailing slash
-  return s.replace(/\/$/, "");
+  if (!s || s === "/") return "";
+  // drop trailing slashes
+  return s.replace(/\/+$/, "");
 }
 
 const BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL as string | undefined);
+if (!BASE_URL && import.meta.env.PROD) {
+  throw new Error("[config] VITE_API_BASE_URL is required in production builds");
+}
+const API_PREFIX = ((import.meta as any).env?.VITE_API_PREFIX ?? "/v1").toString();
 
 // Single-flight refresh control
 let refreshing = false;
@@ -17,7 +22,7 @@ let refreshPromise: Promise<void> | null = null;
 
 // Axios instance
 export const api: AxiosInstance = axios.create({
-  baseURL: BASE_URL, // must already include /v1 when needed
+  baseURL: BASE_URL || undefined, // when empty, use same-origin (dev proxy + relative /v1 paths)
   withCredentials: true,
   timeout: 20000,
   headers: { "Content-Type": "application/json" },
@@ -44,21 +49,19 @@ api.interceptors.request.use((config) => {
 
   // Do NOT add X-CSRF-Token (disabled per spec)
 
-  // Ensure we call paths relative to baseURL (which includes /v1)
-  if (typeof config.url === "string" && config.url.startsWith("/")) {
-    config.url = config.url.replace(/^\/+/, "");
-  }
-
-  // If baseURL is empty or not including a version prefix, add VITE_API_PREFIX to relative paths
+  // Ensure we always call versioned paths (PREFIX + path) unless url is absolute
   try {
-    const hasBase = !!BASE_URL && BASE_URL !== "/";
-    const needsPrefixing = !hasBase;
-    if (needsPrefixing && typeof config.url === "string" && !/^https?:\/\//i.test(config.url)) {
-      const rawPrefix = ((import.meta as any).env?.VITE_API_PREFIX ?? "/v1").toString();
+    if (typeof config.url === "string" && !/^https?:\/\//i.test(config.url)) {
+      const rawPrefix = API_PREFIX || "/v1";
       const normPrefix = rawPrefix.replace(/\/$/, "");
-      const prefixNoLead = normPrefix.replace(/^\//, "");
       const normUrl = config.url.replace(/^\/+/, "");
-      if (!normUrl.toLowerCase().startsWith(prefixNoLead.toLowerCase() + "/")) {
+      const prefixNoLead = normPrefix.replace(/^\//, "");
+      const lowerUrl = normUrl.toLowerCase();
+      const lowerPrefix = prefixNoLead.toLowerCase();
+
+      if (lowerUrl === lowerPrefix || lowerUrl.startsWith(lowerPrefix + "/")) {
+        config.url = `/${normUrl}`;
+      } else {
         config.url = `${normPrefix}/${normUrl}`;
       }
     }

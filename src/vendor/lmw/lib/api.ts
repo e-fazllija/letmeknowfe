@@ -18,10 +18,12 @@ const RAW_BASE = ((import.meta as any).env?.VITE_API_BASE_URL ?? "") as string;
 const RAW_PREFIX = ((import.meta as any).env?.VITE_API_PREFIX ?? "/v1") as string;
 const BASE = normalizeBase(RAW_BASE);
 const PREFIX = normalizePrefix(RAW_PREFIX);
-
 function normalizeBase(b: string) {
   if (!b || b === "/") return ""; // usa proxy in dev
   return b.replace(/\/+$/, "");
+}
+if (!BASE && (import.meta as any).env?.PROD) {
+  throw new Error("[config] VITE_API_BASE_URL is required in production builds");
 }
 function normalizePrefix(p: string) {
   if (!p) return "/v1";
