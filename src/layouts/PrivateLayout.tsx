@@ -43,37 +43,101 @@ export function PrivateLayout() {
     const css = `
       :root {
         --lmw-dark: #111827;
-        --lmw-emerald-start: #0f172a;
-        --lmw-emerald-end: #0f766e;
-        --lmw-emerald-soft: #0d8a7e;
-        --lmw-emerald-mid: #0f4743;
+        --lmw-emerald-start: #ffffff;
+        --lmw-emerald-mid: #eef2fb;
+        --lmw-emerald-end: #d9e0f4;
+        --lmw-emerald-soft: #24315f;
+        --lmw-sidebar-w: 260px;
+        --lmw-topbar-h: 78px;
+        --lmw-bg-gradient: linear-gradient(180deg, #f8f9ff 0%, #eef2fb 52%, #d9e0f4 100%);
+        --lmw-topbar-bg: linear-gradient(90deg, #f8f9ff 0%, #eef2fb 45%, #d9e0f4 100%);
       }
       .lmw-shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
-      @media (max-width: 991.98px) { .lmw-shell { grid-template-columns: 220px 1fr; } }
+      @media (max-width: 991.98px) { .lmw-shell { grid-template-columns: 220px 1fr; } :root { --lmw-sidebar-w: 220px; } }
       @media (max-width: 767.98px) { .lmw-shell { grid-template-columns: 1fr; } }
       .lmw-sidebar {
-        background:
-          radial-gradient(circle at 18% 22%, rgba(226, 252, 247, 0.08), transparent 40%),
-          linear-gradient(180deg, var(--lmw-emerald-start) 0%, var(--lmw-emerald-mid) 58%, var(--lmw-emerald-end) 100%);
-        color: #fff;
+        isolation: isolate;
+        background: var(--lmw-bg-gradient);
+        color: var(--lmw-emerald-soft);
         height: 100vh;
         position: sticky;
         top: 0;
         overflow: auto;
         padding: 1rem;
-        box-shadow: 6px 0 24px rgba(15, 23, 42, 0.18);
+        margin-top: -1px;
+        padding-top: calc(1rem + 1px);
+        box-shadow: none;
+        background-repeat: no-repeat;
       }
-      .lmw-sidebar .nav-link { color:#dbeafe; font-weight:600; }
-      .lmw-sidebar .nav-link:hover { color:#fff; }
-      .lmw-sidebar .nav-link.active { color:#fff; background:rgba(255,255,255,.12); border-radius:.375rem; }
-      .lmw-main { display:flex; flex-direction:column; min-height:100vh; background:#f8fafc; }
+      /* Extend the topbar gradient behind the sidebar logo area (no seam). */
+      .lmw-sidebar::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: calc(var(--lmw-topbar-h) + 2px);
+        background: var(--lmw-topbar-bg);
+        background-position: 0 0;
+        background-size: 100vw var(--lmw-topbar-h);
+        border-bottom: none;
+        box-shadow: none;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .lmw-sidebar > * { position: relative; z-index: 1; }
+      .lmw-sidebar .nav-link {
+        color: var(--lmw-emerald-soft);
+        font-weight:600;
+        background: rgba(255, 255, 255, 0.62);
+        border: 1px solid rgba(36, 49, 95, 0.12);
+        border-radius:.5rem;
+      }
+      .lmw-sidebar .nav-link:hover {
+        color: var(--lmw-emerald-soft);
+        background: rgba(255, 255, 255, 0.78);
+        border-color: rgba(36, 49, 95, 0.18);
+      }
+      .lmw-sidebar .nav-link.active {
+        color: #f08010;
+        background: rgba(255, 255, 255, 0.90);
+        border-color: rgba(240, 128, 16, 0.55);
+        box-shadow: 0 10px 18px rgba(15, 23, 42, 0.10);
+      }
+      .lmw-main {
+        display:flex;
+        flex-direction:column;
+        min-height:100vh;
+        background: var(--lmw-bg-gradient);
+        --bs-card-bg: rgba(var(--bs-secondary-rgb), 0.16);
+        --bs-card-cap-bg: rgba(var(--bs-secondary-rgb), 0.22);
+        --bs-card-border-color: rgba(var(--bs-primary-rgb), 0.10);
+      }
+      .lmw-main .card-header.bg-white { background: var(--bs-card-cap-bg) !important; }
+      .lmw-main .card {
+        background: var(--bs-card-bg);
+        border-color: var(--bs-card-border-color);
+      }
+      .lmw-main .card-header {
+        background: var(--bs-card-cap-bg);
+        border-color: var(--bs-card-border-color);
+      }
+      .lmw-main .info-card,
+      .lmw-main .filter-card,
+      .lmw-main .table-card {
+        background: rgba(var(--bs-secondary-rgb), 0.16);
+        border-color: rgba(var(--bs-primary-rgb), 0.10);
+      }
       .lmw-topbar {
-        background:
-          linear-gradient(135deg, var(--lmw-emerald-start) 0%, var(--lmw-emerald-end) 60%, var(--lmw-emerald-soft) 100%) !important;
+        background: var(--lmw-topbar-bg) !important;
+        /* align the gradient with the sidebar (same 100vw canvas) */
+        background-position: calc(-1 * var(--lmw-sidebar-w)) 0 !important;
+        background-size: 100vw var(--lmw-topbar-h) !important;
         position: sticky;
         top: 0;
         z-index: 1040;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+        box-shadow: none;
+        border-bottom: none;
       }
       .lmw-content { flex:1 1 auto; padding:1rem; }
       @media (max-width: 767.98px) { .lmw-sidebar { height:auto; position:static; } }
@@ -157,16 +221,16 @@ export function PrivateLayout() {
 
         {/* Colonna destra: navbar in alto + contenuto sotto */}
         <section className="lmw-main">
-          <Navbar expand="md" variant="dark" className="lmw-topbar shadow-sm">
+          <Navbar expand="md" variant="light" className="lmw-topbar shadow-sm">
             <Container fluid className="justify-content-end">
               <Nav className="align-items-center gap-3">
                 <NotificationBell />
                 <Dropdown align="end">
                   <Dropdown.Toggle
                     size="sm"
-                    variant="outline-light"
+                    variant="outline-dark"
                     id="dropdown-user"
-                    className="text-light border-0"
+                    className="text-dark border-0"
                   >
                     {(() => {
                       const u = auth?.user;

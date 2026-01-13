@@ -131,7 +131,7 @@ export default function Reports() {
   return (
     <div className="page-shell">
       <div className="container-fluid py-2">
-        <div className="page-hero mb-3">
+        <div className="page-hero page-hero--primary mb-3">
           <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
             <div>
               <div className="eyebrow">Segnalazioni</div>

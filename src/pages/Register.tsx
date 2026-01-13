@@ -430,7 +430,7 @@ await signupPublicClient(payload);
             </Row>
 
             <div className="d-flex gap-2">
-              <Button type="submit" variant="dark" disabled={loading}>
+              <Button type="submit" variant="warning" disabled={loading}>
                 {loading ? "Invio…" : "Registra azienda"}
               </Button>
               <Button

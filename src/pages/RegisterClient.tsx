@@ -8,8 +8,7 @@ import Card from "react-bootstrap/Card";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Container from "react-bootstrap/Container";
-import brand from "@/assets/logo-superuser.svg";
-import logoDark from "@/assets/logo-transparent-dark.png";
+import logo from "@/assets/Logo_Letmeknow_Scuro.png";
 import {
   signupPublicClient,
   type EmployeeRange,
@@ -271,7 +270,7 @@ export default function RegisterClient() {
   return (
     <div className="page-shell">
       <Container>
-        <div className="page-hero mb-3">
+        <div className="page-hero page-hero--primary mb-3">
           <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
             <div>
               <div className="eyebrow">Onboarding</div>
@@ -301,11 +300,11 @@ export default function RegisterClient() {
             <Card className="info-card h-100">
               <Card.Body>
                 <div className="d-flex align-items-center gap-2 mb-3">
-                  <img src={logoDark} alt="LetMeKnow" height={42} />
+                  <img src={logo} alt="LetMeKnow" height={42} />
                   <span className="label-muted">Guida rapida</span>
                 </div>
                 <p className="text-secondary small mb-3">
-                  Inserisci i dati aziendali, fatturazione e l&apos;email dell&apos;owner. Il pagamento Stripe avverra dopo l&apos;accesso e l&apos;attivazione.
+                  Inserisci i dati aziendali, fatturazione e l&apos;email dell&apos;owner. Il pagamento tramite Stripe avverrà dopo l&apos;accesso e l&apos;attivazione.
                 </p>
                 <ul className="text-secondary small mb-3">
                   <li>Validazione P.IVA/CF, CAP e SDI</li>
@@ -313,7 +312,7 @@ export default function RegisterClient() {
                   <li>Attivazione e MFA gestiti dal portale</li>
                 </ul>
                 <div className="badge-soft d-inline-flex align-items-center gap-2">
-                  <img src={brand} alt="LetMeKnow" width={18} height={18} />
+                  <img src={logo} alt="LetMeKnow" width={18} height={18} />
                   <span>LetMeKnow Platform</span>
                 </div>
               </Card.Body>
@@ -610,7 +609,7 @@ export default function RegisterClient() {
                   <div className="d-flex gap-2">
                     <Button
                       type="submit"
-                      variant="dark"
+                      variant="warning"
                       className="rounded-pill"
                       disabled={loading}
                     >

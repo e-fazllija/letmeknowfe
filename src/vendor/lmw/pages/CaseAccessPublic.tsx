@@ -113,9 +113,22 @@ export default function CaseAccessPublic() {
   };
 
   return (
-    <div className="container-fluid">
-      <h3 className="mb-3">Accedi alla pratica</h3>
-      {error && <div className="alert alert-danger">{error}</div>}
+    <div className="widget-shell">
+      <div className="container-fluid">
+        <div className="widget-hero mb-3">
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div>
+              <div className="eyebrow">Segnalazioni</div>
+              <h4 className="mb-1">Accedi alla pratica</h4>
+              <div className="text-secondary small">
+                Inserisci il codice segreto per consultare lo stato e i messaggi.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="info-card p-4">
+          {error && <div className="alert alert-danger">{error}</div>}
       <form onSubmit={onSubmit} className="vstack gap-3 mb-3">
         <div>
           <label className="form-label" htmlFor="secret">Codice segreto</label>
@@ -350,10 +363,12 @@ export default function CaseAccessPublic() {
           </form>
         </>
       )}
-      <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1080 }}>
-        <Toast bg="danger" onClose={() => setToastMsg(null)} show={!!toastMsg} delay={3000} autohide>
-          <Toast.Body className="text-white">{toastMsg}</Toast.Body>
-        </Toast>
+        </div>
+        <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1080 }}>
+          <Toast bg="danger" onClose={() => setToastMsg(null)} show={!!toastMsg} delay={3000} autohide>
+            <Toast.Body className="text-white">{toastMsg}</Toast.Body>
+          </Toast>
+        </div>
       </div>
     </div>
   );

@@ -1,18 +1,18 @@
 // src/pages/Landing.tsx
 import { Container, Row, Col, Card, Button } from "react-bootstrap";
-import logo from "@/assets/logo-transparent-dark.png";
-import brand from "@/assets/logo-superuser.svg";
+// import logo from "@/assets/Logo_Letmeknow_Scritta_Sotto_Scuro.png";
+import logo2 from "@/assets/Logo_Letmeknow_Scuro.png";
 
 export default function Landing() {
   return (
     <>
-      <section className="page-hero mb-4">
+      <section className="page-hero page-hero--primary mb-4">
         <Container>
           <Row className="align-items-center g-4">
             <Col md={7}>
               <div className="eyebrow">Piattaforma di whistleblowing</div>
               <h1 className="fw-bold mb-2">Gestisci le segnalazioni con sicurezza enterprise</h1>
-              <p className="text-secondary mb-4">
+              <p className="text-secondary mb-4 description-highlight">
                 Raccolta, revisione e audit delle segnalazioni interne con percorsi guidati, MFA e controlli di accesso.
               </p>
               <div className="d-flex flex-wrap gap-2">
@@ -29,7 +29,7 @@ export default function Landing() {
               <Card className="info-card h-100">
                 <Card.Body>
                   <div className="d-flex align-items-center gap-2 mb-3">
-                    <img src={brand} alt="LetMeKnow" width={24} height={24} />
+                    <img src={logo2} alt="LetMeKnow" height={40} />
                     <span className="label-muted">Console</span>
                   </div>
                   <div className="mb-3">
@@ -98,7 +98,7 @@ export default function Landing() {
                     Registrazione, attivazione owner e setup MFA direttamente dal portale pubblico.
                   </p>
                   <div className="d-flex align-items-center gap-2">
-                    <img src={logo} alt="LetMeKnow" height={40} />
+                    <img src={logo2} alt="LetMeKnow" height={40} />
                     <span className="label-muted">Cloud ready</span>
                   </div>
                 </Card.Body>
