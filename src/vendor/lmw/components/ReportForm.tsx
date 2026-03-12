@@ -403,7 +403,7 @@ export default function ReportForm() {
               <label className="form-label">Allegati</label>
               <div className="dropzone">
                 <input type="file" multiple onChange={handleFiles} />
-                <div className="text-muted small mt-2">File fino a ~100MB (demo: solo elenco)</div>
+                <div className="text-muted small mt-2">3 file da 10MB l'uno, per un masssimo di 20MB totali</div>
                 {attachments?.length ? (
                   <ul className="small mt-2 mb-0">
                     {Array.from(attachments).map((f, i) => <li key={i}>{f.name}</li>)}

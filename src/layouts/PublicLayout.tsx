@@ -1,6 +1,6 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import Button from "react-bootstrap/Button";
-import logo from "@/assets/logo-superuser.svg";
+import logo from "@/assets/Logo_Letmeknow_Scritta_Sotto_Scuro.png";
 
 /** Layout PUBBLICO: nessuna navbar utente; header con CTA */
 export function PublicLayout() {
@@ -18,12 +18,10 @@ export function PublicLayout() {
       <header className="app-header">
         <div className="container header-bar">
           <a href="#/" className="brand-link">
-            <div className="brand-avatar">
-              <img src={logo} alt="LetMeKnow" width={28} height={28} />
-            </div>
+            <img src={logo} alt="LetMeKnow" className="brand-logo" />
             <div className="lh-sm">
               <div className="brand-eyebrow">Piattaforma</div>
-              <div className="brand-title">LetMeKnow</div>
+              <div className="brand-title">Whistleblowing</div>
             </div>
           </a>
           <div className="d-flex align-items-center gap-2">

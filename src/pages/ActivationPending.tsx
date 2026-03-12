@@ -7,8 +7,7 @@ import Form from "react-bootstrap/Form";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
-import brand from "@/assets/logo-superuser.svg";
-import logoDark from "@/assets/logo-transparent-dark.png";
+import logo from "@/assets/Logo_Letmeknow_Scritta_Sotto_Scuro.png";
 import {
   changeOwnerEmail,
   resendOwnerInvite,
@@ -174,7 +173,7 @@ export default function ActivationPending() {
                 <strong>In attesa</strong>
               </div>
               <div className="metric-pill">
-                <img src={brand} alt="LetMeKnow" width={16} height={16} />
+                <img src={logo} alt="LetMeKnow" width={16} height={16} />
                 <span>Owner</span>
                 <strong>Invitato</strong>
               </div>
@@ -259,7 +258,7 @@ export default function ActivationPending() {
             <Card className="info-card h-100">
               <Card.Body>
                 <div className="d-flex align-items-center gap-2 mb-3">
-                  <img src={logoDark} alt="LetMeKnow" height={40} />
+                  <img src={logo} alt="LetMeKnow" height={40} />
                   <span className="label-muted">Istruzioni</span>
                 </div>
                 <ul className="text-secondary small mb-3" style={{ paddingLeft: 18 }}>
@@ -268,7 +267,7 @@ export default function ActivationPending() {
                   <li>Dal link potrai impostare password e MFA.</li>
                 </ul>
                 <div className="badge-soft d-inline-flex align-items-center gap-2">
-                  <img src={brand} alt="LetMeKnow" width={18} height={18} />
+                  <img src={logo} alt="LetMeKnow" width={18} height={18} />
                   <span>Attivazione sicura</span>
                 </div>
               </Card.Body>

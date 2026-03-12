@@ -1,7 +1,7 @@
 import Nav from "react-bootstrap/Nav";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import logo from "../assets/logo-transparent-dark.png";
+import logo from "../assets/Logo_Letmeknow_Scritta_Sotto_Scuro.png";
 
 export default function Sidebar() {
   const { has } = useAuth();
@@ -20,12 +20,12 @@ export default function Sidebar() {
       <div className="mb-4 text-center">
         <NavLink
           to="/home"
-          className="d-inline-flex align-items-center text-decoration-none"
+          className="d-inline-flex align-items-center text-decoration-none w-100 justify-content-center"
         >
           <img
             src={logo}
             alt="LetMeKnow"
-            style={{ height: 140, width: "auto" }}
+            className="sidebar-logo-main"
           />
         </NavLink>
       </div>

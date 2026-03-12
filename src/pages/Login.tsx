@@ -2,8 +2,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Alert, Button, Card, Col, Container, Form, Row } from "react-bootstrap";
-import brand from "@/assets/logo-superuser.svg";
-import logoDark from "@/assets/logo-transparent-dark.png";
+import logo from "@/assets/Logo_Letmeknow_Scuro.png";
 import { completeMfa as apiCompleteMfa } from "@/api/api";
 import { mfaSetup, mfaVerify } from "@/lib/tenantAuth.service";
 import { useAuth } from "@/context/AuthContext";
@@ -15,7 +14,7 @@ export default function Login() {
   const location = useLocation();
   const locState = (location.state as LocationState) || null;
   const { login: ctxLogin, mfa: ctxMfa, authPhase } = useAuth();
-  const publicSignupUrl =
+  const publicSignupUrl = "https://let-me-know.it/public/signup";
     (import.meta as any).env?.VITE_PUBLIC_SIGNUP_URL ||
     `${(import.meta as any).env?.VITE_API_BASE_URL}/public`;
 
@@ -133,7 +132,7 @@ export default function Login() {
               <Row className="g-0">
                 <Col lg={5} className="d-none d-lg-flex flex-column justify-content-between auth-hero-pane">
                   <div>
-                    <img src={logoDark} alt="LetMeKnow" className="auth-logo mb-4" />
+                    <img src={logo} alt="LetMeKnow" className="auth-logo mb-4" />
                     <div className="label-muted mb-2">Accesso riservato</div>
                     <p className="mb-3">
                       Gestisci segnalazioni, audit trail e controlli MFA in un'unica console sicura.
@@ -152,8 +151,8 @@ export default function Login() {
                     </div>
                   </div>
                   <div className="badge-soft mt-4">
-                    <img src={brand} alt="LetMeKnow Platform" width={20} height={20} />
-                    <span>LetMeKnow Platform</span>
+                    <img src={logo} alt="Whistleblowing Platform" width={20} height={20} />
+                    <span>Whistleblowing Platform</span>
                   </div>
                 </Col>
                 <Col lg={7} className="p-4 p-lg-5">

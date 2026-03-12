@@ -23,7 +23,14 @@ import { getDashboardData, type DashboardData } from "../../lib/stats.service";
 import { parse, format } from "date-fns";
 import { it as itLocale } from "date-fns/locale";
 
-const PALETTE = ["#0d6efd", "#198754", "#dc3545", "#0dcaf0", "#ffc107", "#6c757d"];
+const PALETTE = [
+  "var(--bs-primary)",
+  "var(--accent-vista)",
+  "var(--bs-warning)",
+  "var(--ink-500)",
+  "var(--brand-300)",
+  "var(--brand-100)",
+];
 
 // util: "2025-01" -> "gen 2025"
 function fmtMonth(yyyyMm: string) {
@@ -136,7 +143,7 @@ export default function DashboardCharts() {
 
       {/* Andamento + filtro range */}
       <Card>
-        <Card.Header className="bg-white d-flex flex-wrap align-items-center justify-content-between">
+        <Card.Header className="d-flex flex-wrap align-items-center justify-content-between">
           <div className="fw-semibold">Andamento mensile</div>
           <Form.Select size="sm" style={{ maxWidth: 220 }} value={range} onChange={(e) => setRange(e.target.value)}>
             <option value="12m">Ultimi 12 mesi</option>
@@ -162,7 +169,7 @@ export default function DashboardCharts() {
         {/* Reparti */}
         <Col>
           <Card>
-            <Card.Header className="bg-white fw-semibold">Analisi reparti</Card.Header>
+            <Card.Header className="fw-semibold">Analisi reparti</Card.Header>
             <Card.Body style={{ height: 360 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart margin={{ top: 24, right: 8, bottom: 8, left: 8 }}>
@@ -181,7 +188,7 @@ export default function DashboardCharts() {
         {/* Categorie */}
         <Col>
           <Card>
-            <Card.Header className="bg-white fw-semibold">Analisi categorie</Card.Header>
+            <Card.Header className="fw-semibold">Analisi categorie</Card.Header>
             <Card.Body style={{ height: 360 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart margin={{ top: 24, right: 8, bottom: 8, left: 8 }}>
@@ -200,7 +207,7 @@ export default function DashboardCharts() {
 
       {/* Stati nel tempo + filtro range (sincronizzato) */}
       <Card>
-        <Card.Header className="bg-white d-flex flex-wrap align-items-center justify-content-between">
+        <Card.Header className="d-flex flex-wrap align-items-center justify-content-between">
           <div className="fw-semibold">Analisi stati</div>
           <Form.Select size="sm" style={{ maxWidth: 220 }} value={range} onChange={(e) => setRange(e.target.value)}>
             <option value="12m">Ultimi 12 mesi</option>

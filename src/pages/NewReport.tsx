@@ -213,7 +213,7 @@ export default function NewReport() {
   return (
     <div className="page-shell">
       <div className="container-fluid py-2">
-        <div className="page-hero mb-3">
+        <div className="page-hero page-hero--primary mb-3">
           <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
             <div>
               <div className="eyebrow">Segnalazioni</div>
@@ -226,7 +226,7 @@ export default function NewReport() {
               <Button size="sm" variant="outline-dark" className="rounded-pill" onClick={() => navigate("/reports")}>
                 Torna alle segnalazioni
               </Button>
-              <span className="badge-soft">Max 3 file · 10MB</span>
+              <span className="badge-soft">3 file: Max 20MB</span>
             </div>
           </div>
         </div>
@@ -358,7 +358,7 @@ export default function NewReport() {
               <Form.Group className="mb-3" controlId="attachments">
                 <Form.Label>Allegati</Form.Label>
                 <Form.Control type="file" multiple accept=".png,.jpg,.jpeg,.pdf,.txt,.mp3,.wav" disabled={!PRESIGN_ENABLED} title={PRESIGN_ENABLED ? undefined : "Funzione non disponibile"} {...register("attachments")} />
-                <div className="form-text">{PRESIGN_ENABLED ? "3 file, fino a ~10MB l'uno." : "Funzione non disponibile."}</div>
+                <div className="form-text">{PRESIGN_ENABLED ? "3 file, fino a ~20MB" : "Funzione non disponibile."}</div>
               </Form.Group>
 
               <Form.Group className="mb-3" controlId="revealSecret">

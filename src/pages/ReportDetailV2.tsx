@@ -672,7 +672,7 @@ const assigneeLabel: string = useMemo(() => {
   return (
     <div className="page-shell">
       <div className="container-fluid py-2">
-        <div className="page-hero mb-3">
+        <div className="page-hero page-hero--primary mb-3">
           <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
             <div>
               <div className="eyebrow">Segnalazioni</div>
@@ -931,14 +931,17 @@ const assigneeLabel: string = useMemo(() => {
               <strong>Messaggi interni</strong>
             </Card.Header>
             <Card.Body className="p-0">
-              <div className="overflow-auto p-3" style={{ maxHeight: "50vh", minHeight: 360 }}>
+              <div className="internal-messages overflow-auto p-3" style={{ maxHeight: "50vh", minHeight: 360 }}>
                 <ListGroup variant="flush">
                   {shownMessages.map((m) => (
-                    <ListGroup.Item key={(m as any).id} className="px-0">
+                    <ListGroup.Item
+                      key={(m as any).id}
+                      className={"px-0 lmw-msg-item " + (isSystemMessage(m) ? "lmw-msg-item--system" : "")}
+                    >
                       <div className="d-flex justify-content-between align-items-center">
                         <div>
                           {isSystemMessage(m) ? (
-                            <Badge bg="danger">SYSTEM</Badge>
+                            <Badge bg="warning" text="dark">SYSTEM</Badge>
                           ) : (
                             <Badge
                               bg={
@@ -956,7 +959,7 @@ const assigneeLabel: string = useMemo(() => {
                       </div>
                       <div
                         className="mt-1"
-                        style={{ whiteSpace: "pre-wrap", fontStyle: isSystemMessage(m) ? "italic" : undefined }}
+                        style={{ whiteSpace: "pre-wrap" }}
                       >
                         {auditor && !isSystemMessage(m) ? "••••••" : renderMessageBody(m)}
                       </div>

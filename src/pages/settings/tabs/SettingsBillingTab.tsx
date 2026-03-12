@@ -343,9 +343,9 @@ export default function SettingsBillingTab() {
                       <div
                         className="border rounded h-100 d-flex flex-column"
                         style={{
-                          borderColor: active ? 'var(--brand-500)' : 'var(--ink-300)',
-                          boxShadow: active ? '0 8px 28px rgba(20,184,166,0.24)' : '0 6px 18px rgba(15,23,42,0.08)',
-                          background: active ? 'linear-gradient(180deg, #fff, #f6fffd)' : '#fff',
+                          borderColor: active ? 'var(--accent-vista)' : 'var(--ink-300)',
+                          boxShadow: active ? '0 8px 28px rgba(var(--bs-secondary-rgb), 0.35)' : '0 6px 18px rgba(15,23,42,0.08)',
+                          background: active ? 'rgba(var(--bs-secondary-rgb), 0.22)' : '#fff',
                           transition: 'all 140ms ease',
                           padding: '18px 18px 14px',
                         }}
@@ -360,8 +360,8 @@ export default function SettingsBillingTab() {
                           <span
                             className="badge"
                             style={{
-                              backgroundColor: active ? 'var(--brand-500)' : '#f1f5f9',
-                              color: active ? '#fff' : '#0f172a',
+                              backgroundColor: active ? 'var(--accent-vista)' : '#f1f5f9',
+                              color: active ? 'var(--brand-700)' : 'var(--ink-900)',
                             }}
                           >
                             {p.badge}

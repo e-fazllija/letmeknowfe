@@ -4,7 +4,11 @@ import axios from "axios";
 import type { Report, ReportMessage } from "./report.dto";
 
 // --- ENV origin/prefix (cookie-first; no rewrite to window.origin) ---
-export const ORIGIN = (import.meta.env.VITE_API_BASE_URL ?? "").trim() || "http://localhost:3000";
+const RAW_ORIGIN = (import.meta.env.VITE_API_BASE_URL ?? "").trim();
+if (!RAW_ORIGIN && import.meta.env.PROD) {
+  throw new Error("[config] VITE_API_BASE_URL is required in production builds");
+}
+export const ORIGIN = RAW_ORIGIN || "http://localhost:3000";
 const PREFIX = (import.meta.env.VITE_API_PREFIX ?? "/v1").trim();
 
 // Helper endpoint v1 idempotente

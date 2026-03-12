@@ -10,17 +10,17 @@ export default function Sidebar({ logoSrc, title = "LetMeKnow" }: Props) {
     "list-group-item list-group-item-action" + (isActive ? " active" : "");
 
   return (
-    <aside className="sidebar border-end">
-      <div className="d-flex justify-content-start align-items-center py-4 border-bottom px-3">
+    <aside className="sidebar">
+      <div className="mb-4 text-center px-3 pt-4">
         <NavLink
           to="/new/text"
-          className="text-decoration-none d-block w-100"
+          className="d-inline-flex align-items-center text-decoration-none w-100 justify-content-center"
           title="Nuova segnalazione"
         >
           {logoSrc ? (
-            <img src={logoSrc} alt={title} className="sidebar-logo" />
+            <img src={logoSrc} alt={title} className="sidebar-logo-main" />
           ) : (
-            <span className="fs-5 fw-bold text-white">{title}</span>
+            <span className="fs-5 fw-bold">{title}</span>
           )}
         </NavLink>
       </div>
